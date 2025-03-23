@@ -1,0 +1,365 @@
+---
+title: "Assignment 6"
+author: "Ed Murphy"
+date: "2025-03-08"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+  word_document: default
+---
+
+  
+
+```{r setup, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(tidyverse)
+library(ggplot2)
+library(haven)
+library(here)
+
+# setting working directory for knitting
+knitr::opts_knit$set(root.dir = here())
+```
+
+  
+
+## Load the data
+
+```{r load}
+# load the data
+women1975 <- read_dta(here("data", "mroz.dta"))
+```
+
+  
+
+## Problem 1a
+
+
+```{r 1a}
+# Problem 1a
+str(women1975$inlf)
+nrow(women1975)
+table(women1975$inlf)
+```
+
+There are `r nrow(women1975)` in the dataset. Of those, `r sum(women1975$inlf == 1)` were in the labor force.
+
+  
+## Problem 1b
+
+```{r 1b}
+# Problem 1b
+summary(women1975$wage[women1975$inlf == 1])
+
+women1975 %>%
+  filter(inlf == 1) %>%
+  ggplot(aes(x = wage)) +
+  geom_histogram(bins = 20, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(xintercept = mean(wage), color = "Mean"), linetype = "dashed", linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c('Mean' = 'red')) +
+  labs(title = 'Hourly Wage for Women in 1975',
+       x = 'Hourly Wage',
+       y = 'Count') +
+  theme_minimal()
+```
+  
+The distribution of wages does not look normal. There are a large number of observations in relatively few categories on the left side of the mean, and then a long tail with relatively few observations to the right of the mean. 
+  
+## Problem 1c
+
+The inability to measure wages for women outside the labor force is definitely a challenge if the goal is to understand wages for women in general. For example, women working in jobs that pay cash "under the table" - as nannies, construction workers, etc. - are earning wages, but they are not in our dataset. To the extent that women earning wages "under the table" have characteristics that are unique from women earning official measured wages, we have a statistical problem on our hands.
+
+  
+
+## Problem 1di
+
+Because of what we discussed in `Problem 1c`, I am going to limit my analysis of wage vs. age to women who are in the labor force.
+
+```{r 1di}
+# Problem 1di
+summary(women1975$age[women1975$inlf==1])
+```
+
+The median age of women in the labor force is `r median(women1975$age[women1975$inlf==1])`. The youngest age in the labor force is `r min(women1975$age[women1975$inlf==1])` and the oldest age in the labor force is `r max(women1975$age[women1975$inlf==1])`.
+
+  
+
+## Problem 1dii
+```{r 1dii}
+# Problem 1dii
+cov(women1975$wage[women1975$inlf==1], women1975$age[women1975$inlf==1])
+```
+
+The covariance of wage and age, for women in the labor force, of `r cov(women1975$wage[women1975$inlf==1], women1975$age[women1975$inlf==1])`, tells us that higher age in years is associated with higher wage in dollars.
+
+  
+## Problem 1diii
+
+
+```{r 1diii}
+# Problem 1diii
+cor(women1975$wage[women1975$inlf==1], women1975$age[women1975$inlf==1])
+```
+The correlation between wage and age for women in the labor force is `r cor(women1975$wage[women1975$inlf==1], women1975$age[women1975$inlf==1])`. Now that we've removed the units (age in years, wage in dollars/hour), we can see that the relationship is pretty weak. Wage and age are almost uncorrelated for women in the labor force.
+
+  
+## Problem 1div
+
+
+```{r 1div}
+# Problem 1div
+women1975 %>%
+  filter(inlf == 1) %>%
+  ggplot(aes(x = age, y = wage)) +
+  geom_point(color = 'steelblue', alpha = 0.7) +
+  labs(title = 'Age vs. Hourly Wage for Women in the Labor Force in 1975',
+       x = 'Age',
+       y = 'Hourly Wage') +
+  theme_minimal()
+```
+The scatter plot shows no obvious relationship between wage and age for women in the labor force.
+
+  
+## Problem 1dv
+
+
+```{r 1dv}
+# Problem 1dv
+women1975 %>%
+  filter(inlf == 1) %>%
+  ggplot(aes(x = age, y = wage)) +
+  geom_point(color = 'steelblue', alpha = 0.7) +
+  geom_smooth(method = 'lm', se = FALSE, color = 'red', linetype = 'dashed') +
+  labs(title = 'Age vs. Hourly Wage for Women in 1975',
+       x = 'Age',
+       y = 'Hourly Wage') +
+  theme_minimal()
+```
+The linear fit on top of the scatter plot confirms my instincts from the previous scatter plot. There is almost no relationship between wage and age for women in the labor force.
+  
+
+## Problem 1dvi
+
+```{r 1dvi}
+# Problem 1dvi
+model <- lm(wage ~ age, data = women1975, inlf==1)
+summary(model)
+model_summary <- summary(model)
+pvalues_coeff <- model_summary$coefficients[, 4]
+```
+The estimator for the intercept is `r model$coefficients['(Intercept)']`. The estimator for the slope is `r model$coefficients['age']`. The estimator for the slope tells us that for women in the labor force, an additional year of age, the hourly wage increases by an average of `r model$coefficients['age']` dollars. However, the p-value of `r pvalues_coeff[2]` means that this coefficient is not statistically significant at the 95% confidence level.
+
+## Problem 1dvii
+
+Given the regression coefficient and p-value discussed in `Problem 1dvi` above, there is no relationship between wage and age for women in the labor force. For women in the labor force, maybe there are two countervailing factors. First, younger women in the labor force are earlier in their careers and thus make less than older women who are later in their careers. Second, some women enter the labor force at relatively late ages after their children are grown, and start off at relatively low wages despite their older ages. Those two countervailing factors could work together to result in net no relationship.
+
+
+## Problem 1ei
+
+Because of what we discussed in `Problem 1c`, I am going to limit my analysis of wage vs. age to women who are in the labor force.
+
+```{r 1ei}
+# Problem 1ei
+summary(women1975$educ[women1975$inlf==1])
+```
+
+The median years of education for women in the labor force is `r median(women1975$educ[women1975$inlf==1])`. The least amount of education is `r min(women1975$educ[women1975$inlf==1])` and the most years of education is `r max(women1975$educ[women1975$inlf==1])`.
+
+  
+
+## Problem 1eii
+```{r 1eii}
+# Problem 1eii
+cov(women1975$wage[women1975$inlf==1], women1975$educ[women1975$inlf==1])
+```
+
+The covariance of wage and education, for women in the labor force, of `r cov(women1975$wage[women1975$inlf==1], women1975$educ[women1975$inlf==1])`, tells us that more years of education is associated with higher hourly wage in dollars.
+
+  
+## Problem 1eiii
+
+
+```{r 1eiii}
+# Problem 1eiii
+cor(women1975$wage[women1975$inlf==1], women1975$educ[women1975$inlf==1])
+```
+The correlation between wage and years of education for women in the labor force is `r cor(women1975$wage[women1975$inlf==1], women1975$educ[women1975$inlf==1])`. Now that we've removed the units (education in years, wage in dollars/hour), we can see that the relationship is moderately strong and positive. Greater years of education are correlated with higher hourly wages, but other variables likely play a role.
+
+  
+## Problem 1eiv
+
+
+```{r 1eiv}
+# Problem 1eiv
+women1975 %>%
+  filter(inlf == 1) %>%
+  ggplot(aes(x = educ, y = wage)) +
+  geom_point(color = 'steelblue', alpha = 0.7) +
+  labs(title = 'Years of Education vs. Hourly Wage for Women in the Labor Force in 1975',
+       x = 'Years of Education',
+       y = 'Hourly Wage') +
+  theme_minimal()
+```
+The scatter plot shows seems to show that at higher years of education, there is a bit of an upward trend in terms of hourly wages. It's a bit hard to see because years of education is not perfectly continuous - the years fall into discrete buckets, given the nature of education. But still, there is an upward trend visible.
+
+  
+## Problem 1ev
+
+
+```{r 1ev}
+# Problem 1ev
+women1975 %>%
+  filter(inlf == 1) %>%
+  ggplot(aes(x = educ, y = wage)) +
+  geom_point(color = 'steelblue', alpha = 0.7) +
+  geom_smooth(method = 'lm', se = FALSE, color = 'red', linetype = 'dashed') +
+  labs(title = 'Years of Education vs. Hourly Wage for Women in the Labor Force in 1975',
+       x = 'Years of Education',
+       y = 'Hourly Wage') +
+  theme_minimal()
+```
+The linear fit on top of the scatter plot confirms the moderate positive relationship between years of education and hourly wages for women in the labor force.
+  
+
+## Problem 1evi
+
+```{r 1evi}
+# Problem 1evi
+model <- lm(wage ~ educ, data = women1975, inlf==1)
+summary(model)
+model_summary <- summary(model)
+pvalues_coeff <- model_summary$coefficients[, 4]
+```
+The estimator for the intercept is `r model$coefficients['(Intercept)']`. The estimator for the slope is `r model$coefficients['educ']`. The estimator for the slope tells us that for women in the labor force, an additional year of education, the hourly wage increases by an average of `r model$coefficients['educ']` dollars. The p-value of `r pvalues_coeff[2]` means that this coefficient is statistically significant at the 95% confidence level.
+
+## Problem 1evii
+
+Given the regression coefficient and p-value discussed in `Problem 1evi` above, we know that the relationship between years of education and hourly wage is moderately positive and statistically significant at the 95% confidence level. This makes sense, especially relative to the findings for wage and age. In age, we likely ran into the problem that women at a given age can still be very diverse in terms of characteristics that correspond to wage. At years of education, this is less so. If a woman has 16 years of education, i.e. a college degree, she is likely qualified for a relatively narrow subset of jobs. If a woman has 12 years of education, i.e. a high school diploma, then she is likely qualified for a different subset of jobs. With education as a characteristic that fills women into certain types of jobs, it makes sense that wages would be related to education.
+
+## Problem 1f
+
+```{r 1f}
+
+covariance_educ_wage <- cov(women1975$educ[women1975$inlf==1], women1975$wage[women1975$inlf==1])
+variance_educ <- var(women1975$educ[women1975$inlf==1])
+quantity_1f <- covariance_educ_wage / variance_educ
+quantity_1f
+```
+
+The covariance of education and wage divided by the variance of education, is just the same thing as the regression coefficient for education (B1hat) in the linear regression model!
+
+  
+## Problem 1g
+
+We know that our equation is...
+sample mean of wage = B0hat + B1hat * sample mean of education
+
+With some algebra, we can convert that to...
+B0hat = sample mean of wage - B1hat * sample mean of education
+
+```{r 1g}
+wage_sample_mean <- mean(women1975$wage[women1975$inlf==1])
+educ_sample_mean <- mean(women1975$educ[women1975$inlf==1])
+b1hat <- quantity_1f
+b0hat <- wage_sample_mean - b1hat * educ_sample_mean
+b0hat
+```
+
+`b0hat`, or the intercept of the linear regression model, is `r b0hat`.
+
+
+
+## Problem 2
+
+```{r load2}
+# load the data
+fakedata <- read_csv(here("data", "fakedata.csv"))
+```
+  
+## Problem 2a
+
+
+```{r 2a}
+# Problem 2a
+summary(fakedata$y)
+summary(fakedata$x1)
+summary(fakedata$x2)
+
+fakedata %>%
+  
+  ggplot() +
+
+  geom_histogram(aes(x = y, fill = 'y'), bins = 20, alpha = 0.5) +
+  geom_histogram(aes(x = x1, fill = 'x1'), bins = 20, alpha = 0.5) +
+  geom_histogram(aes(x = x2, fill = 'x2'), bins = 20, alpha = 0.5) +
+
+  geom_vline(aes(xintercept = mean(y), color = "mean y"), linetype = "dashed", linewidth = 1) +
+  geom_vline(aes(xintercept = mean(x1), color = "mean x1"), linetype = "dashed", linewidth = 1) +
+  geom_vline(aes(xintercept = mean(x2), color = "mean x2"), linetype = "dashed", linewidth = 1) +
+
+  scale_fill_manual(name = 'Variable', values = c('y' = 'lightblue', 'x1' = 'orange', 'x2' = 'lightgreen')) +
+
+  scale_color_manual(name = 'Statistics', values = c('mean y' = 'lightblue', 'mean x1' = 'orange', 'mean x2' = 'lightgreen')) +
+
+  labs(title = 'Overlaid Histograms for y, x1, and x2',
+       x = 'Value',
+       y = 'Count') +
+  
+  theme_minimal()
+```
+
+  
+
+## Problem 2b
+
+```{r 2b}
+# Problem 2b
+cor(fakedata$y, fakedata$x1)
+cor(fakedata$y, fakedata$x2)
+cor(fakedata$x1, fakedata$x2)
+```
+The correlation between `y` and `x1` is `r cor(fakedata$y, fakedata$x1)`, indicating a strong positive relationship.
+The correlation between `y` and `x2` is `r cor(fakedata$y, fakedata$x2)`, indicating a very strong positive relationship.
+The correlation between `x1` and `x2` is `r cor(fakedata$x1, fakedata$x2)`, indicating a strong positive relationship.
+
+
+  
+## Problem 2c
+
+```{r 2c}
+# Problem 2c
+ggplot(fakedata, aes(x = x1, y = y)) +
+  geom_point(color = 'steelblue', alpha = 0.7) +
+  geom_smooth(method = 'lm', se = FALSE, color = 'red', linetype = 'dashed') +
+  labs(title = 'x1 vs. y',
+       x = 'x1',
+       y = 'y') +
+  theme_minimal()
+
+model1 <- lm(y ~ x1, fakedata)
+summary(model1)
+
+```
+The estimator `bhat0` is `r model1$coefficients['(Intercept)']`. The estimator `bhat1` is `r model1$coefficients['x1']`. That value of `bhat1` means that for every 1-unit increase in `x1`, all else held constant, there is a 2.36-unit increase in `y`.
+
+  
+## Problem 2d
+
+
+```{r 2d}
+# Problem 2d
+model2 <- lm(y ~ x1 + x2, data = fakedata)
+summary(model2)
+```
+
+The value of `a1hat` is `r model2$coefficients['x2']`, which is not only much smaller than `b1hat`, but also the opposite sign. If we had used `model1`, we would have assumed that maximizing `y` would have involved increasing `x1`. In reality, the way to maximize `y` was to decrease `x1`. The value of understanding the context and picking the right model is that we are saving ourselves from making the literal wrong decision. At the end of the day, this shows us that picking the wrong model is even worse than doing nothing, if the goal is to maximize `y`.
+
+  
+  
+
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

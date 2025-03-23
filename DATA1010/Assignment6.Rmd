@@ -1,0 +1,343 @@
+---
+title: "HW6"
+author: "Ed Murphy"
+date: "2024-03-04"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r setup, include=FALSE}
+# loading packages
+library(tidyverse)
+library(readr)
+library(maps)
+library(mapdata)
+library(usmap)
+library(here)
+
+# setting the correct working directory
+knitr::opts_knit$set(root.dir = here())
+
+# setting tibble width option
+options(tibble.width = Inf)
+```
+
+## Question #1
+
+<br>
+
+```{r load_data, echo=FALSE, message=FALSE}
+
+## Question #1
+
+# load county_returns
+voting <- read_csv(here("data", "county_returns.csv"))
+
+# check out county_returns data frame
+# I don't need this to be in the output - just showing what I did
+# View(voting)
+
+# add the missing state name for the 4 Hawaii counties that are present in the original data
+voting_correct <- voting %>%
+  mutate(
+    state_correct = ifelse(is.na(state.name) & Geographic.Name %in% c("Hawaii", "Honolulu", "Kauai", "Maui"),"Hawaii", state.name))
+
+# load county-level mapping data
+county <- map_data("county")
+
+# check out the county-level mapping data frame
+# I don't need this to be in the output - just showing what I did
+# View(county)
+
+# bring in the standalone fips codes
+fips <- county.fips
+
+# merge county and voting_correct using fips codes and create new election variables
+map_voting <- county %>%
+  unite(polyname, region, subregion, sep = ",") %>%
+  left_join(fips, by = c("polyname" = "polyname")) %>%
+  left_join(voting_correct, by = c("fips" = "fips")) %>%
+  mutate(
+    clinton_prop = clinton / total_votes_2016,
+    trump_prop = trump / total_votes_2016,
+    clinton_won = ifelse(clinton_prop>trump_prop,"yes","no")
+  )
+
+# if i try to run head(10) or print(10) via the pipe, it doesn't work
+head(map_voting, 10)
+
+```
+
+<br>
+
+As shown in table above, the data have been put into the format specified by Question #1.
+
+<br>
+
+## Question #2
+
+<br>
+
+```{r county_map, echo=FALSE}
+
+## Question #2
+
+# plot_usmap in theory allows for the inclusion of AK and HI
+# however, in our original election data, there are no observations for AK
+# also, in the FIPS codes, Hawaii is missing
+# so effectively, HI and AK are not making it through to the map_voting data frame
+# therefore, they will have missing data in any plots even if plot_usmap is used
+
+plot_usmap(regions = "counties", data = map_voting, values = "clinton_won") +
+  scale_fill_manual(
+    name = "Winner",
+    values = c("red" , "blue"),
+    labels = c("Trump", "Clinton", "Missing Data")
+    ) +
+  ggtitle("County Results of the 2016 U.S. Presidential Election") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    legend.position = "right"
+    )
+
+```
+<br>
+
+NOTE: Data for Alaska and Hawaii are missing, but for different reasons. For Hawaii, there are election data for 4 of the 5 counties in our original data. However, Hawaii doesn't have FIPS codes in the FIPS data set that we're using. For Alaska, the election data themselves are missing entirely from the original election dataset.
+
+<br>
+
+```{r state_map, echo=FALSE}
+
+## Question #2
+
+# bring in state-level geography data
+state_geography <- map_data("state")
+
+# create state-level voting data
+state_voting <- voting_correct %>%
+  group_by(state_correct) %>%
+    summarize(
+    state_total_votes_2016 = sum(total_votes_2016),
+    clinton_state = sum(clinton),
+    trump_state = sum(trump)
+  ) %>%
+  mutate(
+    clinton_prop_state = clinton_state / state_total_votes_2016,
+    trump_prop_state = trump_state / state_total_votes_2016,
+    clinton_won_state = ifelse(clinton_prop_state>trump_prop_state,"yes","no")
+  )
+
+# merge state voting onto state-level geography by state
+state_map_data <- state_geography %>%
+  left_join(state_voting, by = c("region" = "state_correct")) %>%
+  rename(
+    "state" = region
+  )
+
+#make the state plot
+plot_usmap(regions = "states", data = state_map_data, values = "clinton_won_state") +
+  scale_fill_manual(
+    name = "Winner",
+    values = c("red", "blue"),
+    labels = c("Trump", "Clinton", "Missing Data")
+    ) +
+  ggtitle("State Results of the 2016 U.S. Presidential Election") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    legend.position = "right"
+    )
+
+```
+<br>
+
+## Question #3
+
+<br>
+
+First, let's take a look at a map of Hillary Clinton's 2016 vote share by county that uses a color scheme of red-white-blue, where the brightest blue means that she won 100% of the votes in that county.
+
+<br>
+
+```{r proportion_clinton, echo=FALSE}
+
+## Question #3
+
+# creating county voting / geography data
+map_voting_prop <- county %>%
+  unite(polyname, region, subregion, sep = ",") %>%
+  left_join(fips, by = c("polyname" = "polyname")) %>%
+  left_join(voting_correct, by = c("fips" = "fips")) %>%
+  mutate(
+    clinton_prop = clinton / total_votes_2016,
+    trump_prop = trump / total_votes_2016,
+    clinton_won = ifelse(clinton_prop>trump_prop,"yes","no")
+  )
+
+# plotting Hillary Clinton's vote share using red-white-blue
+plot_usmap(regions = "counties", data = map_voting_prop, values = "clinton_prop") +
+  scale_fill_gradient2(
+    name = "Hillary Clinton Vote Share",
+    low = "red",
+    midpoint = 0.5,
+    mid = "White",
+    high = "blue"
+    ) +
+  ggtitle("County Results of the 2016 U.S. Presidential Election") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    legend.position = "right"
+    )
+
+```
+<br>
+
+Next, let's make the same map, but using red-purple-blue. This is the same as the last map except politically mixed areas are shown as purple rather than white.
+
+<br>
+
+```{r proportion_clinton_purple, echo=FALSE}
+
+## Question #3
+
+# plotting Hillary Clinton's vote share using red-white-blue
+plot_usmap(regions = "counties", data = map_voting_prop, values = "clinton_prop") +
+  scale_fill_gradient2(
+    name = "Hillary Clinton Vote Share",
+    low = "red",
+    midpoint = 0.5,
+    mid = "purple",
+    high = "blue"
+    ) +
+  ggtitle("County Results of the 2016 U.S. Presidential Election") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    legend.position = "right"
+    )
+
+```
+<br>
+
+Clearly the map that uses white is better. First, individuals with any difficulties perceiving color are automatically at a disadvantage when looking at the second map. The colors red, blue, and purple do not create enough of a distinction. Moreover, the first map uses white to indicate what could be thought of as an "absence" of something or our null hypothesis - that in any given county, there are two major candidates who will share about half of the vote each. The "data" of interest are those counties in which the vote share wasn't close to 50/50. Our first map appropriately highlights those counties. The second map isn't really highlighting anything.
+
+<br>
+
+## Question #4
+
+<br>
+
+The map below shows the vote share gained by Hillary Clinton in 2016 relative to Barack Obama's 2012 vote share. At first glance, there don't appear to be very many areas where Hillary Clinton outperformed Barack Obama. In fact, this map shows areas, such as the Midwest, in which Hillary Clinton significantly underperformed relative to Barack Obama. In other words, the red areas are showing us where Donald Trump pulled off a "swing" of votes from Democrat to Republican.
+
+<br>
+
+```{r 2012_2016, echo=FALSE}
+
+## Question #4
+
+# create map / election data that allows for 2012-2016 swing comparison
+map_voting_swing <- county %>%
+  unite(polyname, region, subregion, sep = ",") %>%
+  left_join(fips, by = c("polyname" = "polyname")) %>%
+  left_join(voting_correct, by = c("fips" = "fips")) %>%
+  mutate(
+    clinton_prop = clinton / total_votes_2016,
+    trump_prop = trump / total_votes_2016,
+    clinton_won = ifelse(clinton_prop>trump_prop,"yes","no"),
+    obama_prop = obama / total_votes_2012,
+    swing_D_gains = clinton_prop - obama_prop
+  )
+
+# plot swings from 2012 to 2016
+plot_usmap(regions = "counties", data = map_voting_swing, values = "swing_D_gains") +
+  scale_fill_gradient2(
+    name = "D vote share gains from 2012 to 2016",
+    low = "red",
+    midpoint = 0,
+    mid = "white",
+    high = "blue"
+    ) +
+  ggtitle("Gains in Vote Share, Democrats, 2012 to 2016") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    legend.position = "right"
+    )
+
+```
+<br>
+
+But the first map gets a bit hard to see in the tiny Northeastern counties. Maybe Hillary did have some nice swings there, but we just can't see them? Let's take a closer look.
+
+<br>
+
+```{r finding_Hillary_swings, echo=FALSE}
+
+## Question #4
+
+# plot swings from 2012 to 2016
+plot_usmap(regions = "counties", data = map_voting_swing, values = "swing_D_gains", include = .new_england) +
+  scale_fill_gradient2(
+    name = "Gains in vote share for the Democrats from 2012 to 2016",
+    low = "red",
+    midpoint = 0,
+    mid = "white",
+    high = "blue"
+    ) +
+  ggtitle("New England presidential vote swings, 2012 to 2016") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    legend.position = "right"
+    )
+
+```
+<br>
+
+Oh, heavens. We didn't exactly find what we were looking for in terms of Hillary vote swings. In fact, the tough-to-see areas of the Northeast actually contained some areas in which Donald Trump pulled off a significant vote swing. We can now include the Northeast as one of the areas in which Hillary really fell off.
+
+<br>
+
+```{r more_searching, echo=FALSE}
+
+# Question #4
+
+# plot swings from 2012 to 2016
+plot_usmap(regions = "counties", data = map_voting_swing, values = "swing_D_gains", include = .west_region) +
+  scale_fill_gradient2(
+    name = "Gains in vote share for the Democrats from 2012 to 2016",
+    low = "red",
+    midpoint = 0,
+    mid = "white",
+    high = "blue"
+    ) +
+  ggtitle("West Region presidential vote swings, 2012 to 2016") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    legend.position = "right"
+    )
+
+```
+
+<br>
+
+By focusing on the West Region, we can see that Hillary did have some positive vote swing there.
+
+<br>
+
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```

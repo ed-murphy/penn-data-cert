@@ -1,0 +1,491 @@
+---
+title: "Final Exam"
+author: "Ed Murphy"
+date: "2024-03-14"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r setup, include=FALSE}
+
+# SETUP
+
+# setting the correct working directory
+knitr::opts_knit$set(root.dir = "C:/Users/edwar/Dropbox/DATA101/Data/Raw")
+
+# setting tibble width option
+options(tibble.width = Inf)
+
+# loading packages
+library(tidyverse)
+library(readr)
+library(maps)
+library(mapdata)
+library(usmap)
+library(lubridate)
+library(ggplot2)
+
+
+```
+
+<br>
+
+## Question #1
+
+<br>
+
+Showing code here because there is nothing to write for question 1.
+
+<br>
+
+```{r load, message=FALSE}
+
+## Question #1
+
+# load election polls data
+polls <- read_csv("president_polls_historical.csv")
+
+# load election results data
+results <- read_csv("1976-2020-president.csv")
+
+```
+
+<br>
+
+## Question #2
+
+<br>
+
+Showing code here because there is nothing to write for question 2.
+
+<br>
+
+
+```{r filter}
+
+## Question #2
+
+# create new data frame with correct filters for date and candidates
+polls_2020 <- polls %>%
+  mutate(
+    poll_start = mdy(start_date)
+  ) %>%
+  filter(
+    answer %in% c("Biden", "Trump"),
+    poll_start >= ymd("2020-06-01")
+  )
+
+
+```
+
+<br>
+
+## Question #3
+
+<br>
+
+Joe Biden's support increases very slightly (and steadily) during the final few weeks of the campaign. By contrast, Donald Trump's support during that period is first dipping slightly, and then begins trending upward at a slightly accelerating rate. 
+
+<br>
+
+```{r explore, echo=FALSE, warning=FALSE}
+
+## Question #3
+
+# create data frame that only has national polling data
+polls_2020_national <- polls_2020 %>%
+  filter(
+    is.na(state)
+  )
+
+# put poll end date in usable format
+polls_2020_national <- polls_2020_national %>%
+  mutate(
+    poll_end = mdy(end_date)
+  )
+
+# plot
+ggplot(data = polls_2020_national) +
+  geom_point(aes(x = poll_end, y = pct, color = answer), alpha = 0.10) +
+  geom_smooth(aes(x = poll_end, y = pct, color = answer), size = 2) +
+  labs(
+    x = "Poll End Date",
+    y = "Percentage Support in Poll",
+    title = "2020 Presidential Election Polling"
+  ) +
+  theme(
+    plot.title = element_text(hjust=0.5)
+  ) +
+   scale_x_date(
+    date_labels = "%B %Y"
+  ) +
+  scale_color_manual(
+    values = c(Biden = "blue", Trump = "red"),
+    labels = c(Trump = "Trump", Biden = "Biden"),
+    name = "Candidate"
+  )
+
+```
+<br>
+
+## Question #4
+
+<br>
+
+The data pushes back a bit on the possibility that there is a "shy Trump voter" effect. When the poll results for June 2020 through November 2020 are broken out by whether or not polls were conducted using "Live Phone" methods, i.e. speaking to a human being, we see that Trump's uptick in the polls was actually more pronounced when "Live Phone" methods were used. If anything, it looks like people were even more comfortable revealing their preference for Trump when another human was collecting their poll response.
+
+<br>
+
+However, there is of course additional nuance in that story. We can see that during a period in September and October of 2020, polls conducted using the "Live Phone" methods showed a decline in Trump support. And that same decline wasn't as pronounced in the polls conducted using other methods. Perhaps Trump voters are shy in human-conducted polls for a while, and then finally become emboldened in their conviction near election day.
+
+<br>
+
+
+```{r facet, echo=FALSE, warning=FALSE}
+
+## Question #4
+
+# create binary variable for "Live Phone" and all other methods
+polls_2020_national_method <- polls_2020_national %>%
+  separate(methodology, into = c("firstmethod", "secondmethod", "thirdmethod"), sep = "/") %>%
+  mutate(
+    livephone = ifelse(firstmethod == "Live Phone" | secondmethod == "Live Phone" | thirdmethod == "Live Phone", 1, 0),
+    livephone = ifelse(is.na(livephone), 0, livephone),
+    livephone = factor(livephone, levels = c(0, 1), labels = c("Live Phone was NOT used in Poll", "Live Phone was Used in Poll"))
+  )
+
+# faceted plot 
+ggplot(data = polls_2020_national_method) +
+  geom_point(aes(x = poll_end, y = pct, color = answer), alpha = 0.10) +
+  geom_smooth(aes(x = poll_end, y = pct, color = answer), size = 2) +
+  labs(
+    x = "Poll End Date",
+    y = "Percentage Support in Poll",
+    title = "2020 Presidential Election Polling"
+  ) +
+  theme(
+    plot.title = element_text(hjust=0.5)
+  ) +
+   scale_x_date(
+    date_labels = "%B %Y",
+    date_breaks = "3 months"
+  ) +
+  scale_color_manual(
+    values = c(Biden = "blue", Trump = "red"),
+    labels = c(Trump = "Trump", Biden = "Biden"),
+    name = "Candidate"
+  ) +
+  facet_wrap(~ livephone)
+
+
+```
+<br>
+
+## Question #5
+
+<br>
+
+Five states plus DC had an average margin of 30 percentage points or more for Joe Biden. 
+
+<br>
+
+
+```{r states, echo=FALSE}
+
+# Question #5 (1 of 2)
+
+
+# state polling data filtered on number of polls that compares performance difference between parties
+polls_2020_state <- polls %>%
+  filter(
+    !is.na(state)
+  ) %>%
+  group_by(state) %>%
+  summarize(
+    poll_count = n(),
+    avg_Dem_share = mean(ifelse(party == "DEM", pct, NA), na.rm = TRUE),
+    avg_GOP_share = mean(ifelse(party == "REP", pct, NA), na.rm = TRUE),
+    avg_diff = avg_Dem_share - avg_GOP_share
+  ) %>%
+  filter(
+    poll_count >= 10
+  )
+
+
+polls_2020_state %>%
+  select(state, poll_count, avg_diff) %>%
+  arrange(desc(avg_diff)) %>%
+  rename(
+    "Number of Polls" = poll_count,
+    "State" = state,
+    "Avg. Difference (Dem. minus Rep.)" = avg_diff
+  ) %>%
+  head(6)
+
+
+
+```
+
+<br>
+
+Two states had an average margin of 30 points or greater for Donald Trump.
+
+<br>
+
+```{r states2, echo=FALSE}
+
+# Question #5 (2 of 2)
+
+
+polls_2020_state %>%
+  select(state, poll_count, avg_diff) %>%
+  arrange(avg_diff) %>%
+  rename(
+    "Number of Polls" = poll_count,
+    "State" = state,
+    "Avg. Difference (Dem. minus Rep.)" = avg_diff
+  ) %>%
+  head(6)
+
+
+
+```
+
+<br>
+
+## Question #6
+
+<br>
+
+Showing the code here because there is nothing to write for question 6.
+
+<br>
+
+
+```{r actual_diff, warning=FALSE}
+
+# Question #6
+
+results2 <- results %>%
+  filter(year == 2020) %>%
+  select(state, party_detailed, candidatevotes, totalvotes) %>%
+  pivot_wider(names_from = party_detailed, values_from = candidatevotes) %>%
+  select(state, totalvotes, DEMOCRAT, REPUBLICAN) %>%
+  mutate(
+    demvotes = as.numeric(DEMOCRAT),
+    gopvotes = as.numeric(REPUBLICAN),
+    D_pct_votes = (demvotes / totalvotes) * 100,
+    R_pct_votes = (gopvotes / totalvotes) * 100,
+    diff_pct_votes = D_pct_votes - R_pct_votes
+  )
+
+
+
+```
+
+<br>
+
+## Question #7
+
+<br>
+
+Showing the code here because there is nothing to write for question 7.
+
+<br>
+
+
+```{r join}
+
+# Question #7
+
+# get keys in matching format
+state_polls <- polls_2020_state %>%
+  mutate(
+    state_lower_polls = str_to_lower(state)
+  )
+
+state_results <- results2 %>%
+  mutate(
+    state_lower_results = str_to_lower(state)
+  )
+
+# inner join
+state_polls_results <- state_polls %>%
+  inner_join(state_results, by = c("state_lower_polls" = "state_lower_results")) %>%
+  select(-c(state.x, state.y)) %>%
+  select(state_lower_polls, everything()) %>%
+  rename(
+    "State" = state_lower_polls
+  )
+
+```
+
+
+<br>
+
+## Question #8
+
+<br>
+
+The polls seem to have performed pretty well in 2020! They only got North Carolina and Florida wrong.
+
+<br>
+
+```{r accuracy, echo=FALSE}
+
+# Question #8
+
+poll_accuracy <- state_polls_results %>%
+  mutate(
+    winner = ifelse(demvotes>gopvotes, "D", "R"),
+    poll_prediction = ifelse(avg_Dem_share>avg_GOP_share, "D", "R"),
+    poll_correct = ifelse(winner == poll_prediction, "Yes", "No")
+  )
+
+state_geography <- map_data("state") %>%
+  rename(
+    "state" = region
+  )
+
+state_accuracy_plot <- state_geography %>%
+  left_join(poll_accuracy, by = c("state" = "State"))
+
+plot_usmap(regions = "states", data = state_accuracy_plot, values = "poll_correct") +
+  scale_fill_manual(
+    name = "Poll Correct?",
+    values = c("red", "blue"),
+    labels = c("No", "Yes")
+    ) +
+  ggtitle("Accuracy of the 2020 Presidential Election Polls by State") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    legend.position = "right"
+    )
+
+```
+<br>
+
+## Question #9
+
+<br>
+
+The map below shows how much the winner of each state outperformed the poll prediction in that state. For example, Donald Trump was projected by the polls to win in Utah, but his winning margin was almost 7 percentage points better in the actual election results. The same went for Joe Biden in California.
+
+<br>
+
+Overall, the map indicates that there were large portions of the country (for example the Great Plains and the Northwest) in which the polls understated how well Donald Trump would actually go on to do in the election. However, at the end of the day, Trump didn't get extra electoral college votes for outperforming the polls. The polls still got 48 out of the 50 states correct.
+
+<br>
+
+```{r outperformance, echo=FALSE}
+
+# Question #9
+
+outperformance_map <- state_accuracy_plot %>%
+  mutate(
+    outperformance = ifelse(D_pct_votes>R_pct_votes, D_pct_votes - avg_Dem_share, avg_GOP_share - R_pct_votes)
+  )
+
+
+plot_usmap(regions = "states", data = outperformance_map, values = "outperformance") +
+  scale_fill_gradient2(
+    name = str_wrap("Poll outperformance"),
+    low = "red",
+    high = "blue",
+    mid = "white",
+    midpoint = 0
+    ) +
+  ggtitle("Outperformance of Polls in 2020 Presidential Election") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    legend.position = "right"
+    )
+
+```
+<br>
+
+## Question #10
+
+<br>
+
+Neighborhood Research, Climate Nexus, and co/efficient were the three most accurate pollsters in 2020. However, Neighborhood and co/efficient only conducted 2 and 7 polls, respectively. Marquette Law School and Florida Atlantic University were both also extremely accurate, and also conducted a larger number of polls. Perhaps that is more impressive.
+
+<br>
+
+```{r pollsters, echo=FALSE}
+
+# Question #10 (1 of 2)
+
+
+# like in question 5, keeping only the rows from polls that contain state polls
+polls_2020_pollsters <- polls %>%
+  filter(
+    !is.na(state)
+  )
+
+# 3 most accurate
+polls_2020_pollsters %>%
+  group_by(pollster) %>%
+  summarize(
+    number_of_polls = n(),
+    avg_Dem_share = mean(ifelse(party == "DEM", pct, NA), na.rm = TRUE),
+    avg_GOP_share = mean(ifelse(party == "REP", pct, NA), na.rm = TRUE),
+    diff_avg_share = avg_Dem_share - avg_GOP_share,
+    avg_error = abs(diff_avg_share)
+    ) %>%
+  select(pollster, avg_error, number_of_polls) %>%
+  arrange(avg_error) %>%
+  rename(
+    "Average Error" = avg_error,
+    "Number of Polls" = number_of_polls,
+    "Pollster" = pollster
+  ) %>%
+  head(5)
+
+
+
+```
+<br>
+
+The three least accurate pollsters were USC, MassINC, and University of Arkansas. However, they each conducted a very small number of polls. UC Berkeley was relatively inaccurate and somewhat more prolific. Same with PPIC. Bad polls, and alot of them! Notably, USC, UC Berkeley, and PPIC are all from California, which is where Joe Biden had a very large outperformance.
+
+<br>
+
+```{r pollsters2, echo=FALSE}
+
+# Question #10 (2 of 2)
+
+# least accurate
+
+polls_2020_pollsters %>%
+  group_by(pollster) %>%
+  summarize(
+    number_of_polls = n(),
+    avg_Dem_share = mean(ifelse(party == "DEM", pct, NA), na.rm = TRUE),
+    avg_GOP_share = mean(ifelse(party == "REP", pct, NA), na.rm = TRUE),
+    diff_avg_share = avg_Dem_share - avg_GOP_share,
+    avg_error = abs(diff_avg_share)
+    ) %>%
+  select(pollster, avg_error, number_of_polls) %>%
+  arrange(desc(avg_error)) %>%
+  rename(
+    "Average Error" = avg_error,
+    "Number of Polls" = number_of_polls,
+    "Pollster" = pollster
+  ) %>%
+  head(10)
+
+```
+
+
+<br>
+
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```

@@ -1,0 +1,437 @@
+---
+title: "HW5"
+author: "Ed Murphy"
+date: "2024-02-23"
+output:
+  html_document:
+    df_print: paged
+
+---
+
+```{r setup, include=FALSE}
+
+# SETUP
+
+# loading packages
+library(tidyverse)
+library(readxl)
+library(here)
+
+# setting the correct working directory
+knitr::opts_knit$set(root.dir = here())
+
+# setting tibble width option
+options(tibble.width = Inf)
+
+
+
+```
+ <br>
+ 
+## Question #1
+
+<br>
+
+Upon reading the data into R and taking a look at its structure, we can see that the data is not tidy. The data set is giving the average tuition cost for each state, across a range of years. Conceptually, a single observation in this data is a state in a given year, but those observations aren't getting their own rows in this setup. A bunch of years are thrown together on the same row.
+
+<br>
+
+```{r read, echo=FALSE}
+
+# QUESTION #1 
+
+# reading the file
+data <- read_excel(here("data", "us_avg_tuition.xlsx"))
+
+# viewing the data
+data
+
+```
+
+<br>
+
+To fix this, what we need to do is to pivot longer. Once we pivot longer, we now have tidy data. Each observation (a state in a given year) has its own row. Each variable (state, year, average tuition) has its own column. (Unchanged from before, each value continues to have its own cell.)
+
+<br>
+
+```{r tidy, echo=FALSE}
+
+# tidying the data
+tidydata <- data %>%
+  pivot_longer(c("2004", "2005", "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015"),
+               names_to = "Year",
+               values_to = "AvgTuition")
+  
+# viewing the tidy data
+tidydata %>%
+  rename(
+    "Average Tuition" = AvgTuition
+  )
+
+```
+<br>
+
+## Question #2
+
+<br>
+
+In our data, each state has an average tuition value in each year. Question #2 is asking us to take the average across all of the years for each state.
+
+When looking at each state's average tuition across all the years of data, first we can see that the state with the highest average (Vermont) is more than three times that of the state with the lowest average tuition (Wyoming). We can also see that the top four states are all in the Northeastern part of the country.
+
+<br>
+
+```{r avgbystatehi, echo = FALSE}
+
+# QUESTION #2
+
+# creating table of top 4 average tuitions across 2004-2015
+tidydata %>%
+  group_by(State) %>%
+  summarize(
+    state_long_avg = mean(AvgTuition)
+  ) %>%
+  arrange(desc(state_long_avg)) %>%
+  rename(
+    "Average Tuition, 2004-2015" = state_long_avg
+  ) %>%
+  head(4)
+
+```
+
+<br>
+
+Also, the five states with the lowest average tuition are all from the South or West.
+
+<br>
+
+```{r avgbystatelow, echo = FALSE}
+
+# creating table of bottom 5 
+tidydata %>%
+  group_by(State) %>%
+  summarize(
+    state_long_avg = mean(AvgTuition)
+  ) %>%
+  arrange(state_long_avg) %>%
+  rename(
+    "Average Tuition, 2004-2015" = state_long_avg
+  ) %>%
+  head(5)
+
+```
+<br>
+
+## Question #3
+
+<br>
+
+The bar chart below shows the average tuition across all years by state, arranged from highest to lowest.
+
+<br>
+
+```{r stateplot, echo=FALSE}
+
+# QUESTION #3
+
+# creating bar chart for question 3
+tidydata %>%
+  group_by(State) %>%
+  summarize(
+    state_long_avg = mean(AvgTuition)
+  ) %>%
+  arrange(desc(state_long_avg)) %>%
+  ggplot(aes(x = reorder(State, -state_long_avg), y = state_long_avg)) +
+    geom_bar(stat = "identity") +
+    xlab("State") +
+    ylab("Average Tuition, 2004-2015") +
+    scale_y_continuous(labels = scales::dollar_format(), breaks = c(4000, 8000, 12000)) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+    ggtitle("Average Public College Tuition in each State from 2004-2015") +
+    theme(plot.title = element_text(hjust = 0.5))
+
+```
+<br>
+
+## Question #4
+
+<br>
+
+We can see that in all of the years between 2004 and 2015, there are 82 instances in which a state had any year in which tuition was lower than the year before.
+
+<br>
+```{r avgdecrease, echo=FALSE}
+
+#QUESTION #4
+
+# all instances of an annual average tuition decrease
+tidydata %>%
+  group_by(State) %>%
+  arrange(Year) %>%
+  mutate(
+    tuition_change = AvgTuition - lag(AvgTuition)
+  ) %>%
+  filter(tuition_change <0) %>%
+  select(-AvgTuition) %>%
+  rename(
+    "Tuition Change from prior year (%)" = tuition_change
+  )
+
+```
+
+<br>
+
+However, probably more interesting is that there is only one state for which the average tuition was lower in 2015 than it was in 2004 -- and that state is Ohio.
+
+<br>
+```{r avgdecreasetotal, echo=FALSE}
+
+# instances of tuition decrease in 2015 relative to 2004
+tidydata %>%
+  filter(Year == "2004" | Year == "2015" ) %>%
+  group_by(State) %>%
+  mutate(
+    total_avg_change = AvgTuition[Year == "2015"] - AvgTuition[Year == "2004"]
+  ) %>%
+  filter(
+    Year == "2015",
+    total_avg_change <0
+    ) %>%
+  select(-AvgTuition) %>%
+  rename(
+    "Change in Tuition from 2004 to 2015 ($)" = total_avg_change
+  )
+
+```
+<br>
+The state with the largest percentage increase in tuition over this time period is Hawaii, at 138%.
+<br>
+
+```{r pctchange1, echo=FALSE}
+
+# finding largest percentage increase from 2004 to 2015
+tidydata %>%
+  filter(Year == "2004" | Year == "2015" ) %>%
+  group_by(State) %>%
+  mutate(
+    pct_avg_change = 100 * ( AvgTuition[Year == "2015"] - AvgTuition[Year == "2004"] ) / AvgTuition[Year == "2004"]
+  ) %>%
+  filter(Year == "2015") %>%
+  arrange(desc(pct_avg_change)) %>%
+  first() %>%
+  select(-AvgTuition) %>%
+  rename(
+    "Percentage Change in Average Tuition, 2004-2015" = pct_avg_change
+  )
+
+```
+<br>
+The state with the lowest percentage increase is Ohio, who saw average tuition decrease by 2% during the period.
+<br>
+```{r pctchange2, echo=FALSE}
+
+# finding smallest percentage increase from 2004 to 2015
+tidydata %>%
+  filter(Year == "2004" | Year == "2015" ) %>%
+  group_by(State) %>%
+  mutate(
+    pct_avg_change = 100 * ( AvgTuition[Year == "2015"] - AvgTuition[Year == "2004"] ) / AvgTuition[Year == "2004"]
+  ) %>%
+  filter(Year == "2015") %>%
+  arrange(desc(pct_avg_change)) %>%
+  last() %>%
+  select(-AvgTuition) %>%
+  rename(
+    "Percentage Change in Average Tuition, 2004-2015" = pct_avg_change
+  )
+
+```
+<br>
+The story for absolute dollar changes is the same. Hawaii saw the biggest increase in dollar terms.
+<br>
+
+```{r dollarchange1, echo=FALSE}
+
+# largest dollar value increase
+tidydata %>%
+  filter(Year == "2004" | Year == "2015") %>%
+  group_by(State) %>%
+  mutate(
+    dollar_change = AvgTuition[Year=="2015"] - AvgTuition[Year == "2004"]
+  ) %>%
+  arrange(desc(dollar_change)) %>%
+  first() %>%
+  select(-AvgTuition) %>%
+  rename(
+    "Dollar Change in Average Tuition, 2004-2015" = dollar_change
+  )
+
+```
+<br>
+And Ohio saw the smallest increase in dollar terms, with an actual decrease, as mentioned above.
+<br>
+```{r dollarchange2, echo=FALSE}
+
+# smallest dollar value increase
+tidydata %>%
+  filter(Year == "2004" | Year == "2015") %>%
+  group_by(State) %>%
+  mutate(
+    dollar_change = AvgTuition[Year=="2015"] - AvgTuition[Year == "2004"]
+  ) %>%
+  arrange(desc(dollar_change)) %>%
+  last() %>%
+  select(-AvgTuition) %>%
+  rename(
+    "Dollar Change in Average Tuition, 2004 to 2015" = dollar_change
+  )
+
+```
+
+<br>
+
+## Question #5
+
+<br>
+
+First, I just want to take a 30,000-foot view of what's going on in the data. The plot below shows the patterns of each state during the time frame covered by our data.
+
+<br>
+
+```{r exploringstates, echo=FALSE}
+
+#QUESTION #5
+
+# let's look at the pattern in each state
+
+tidydata %>%
+  mutate(Year = as.numeric(Year)) %>%
+  ggplot() +
+    geom_point(aes(x = Year, y = AvgTuition, group = State)) + 
+    facet_wrap(~ State) +
+    scale_x_continuous(breaks = c(2004, 2015)) +
+    scale_y_continuous(breaks = c(0, 15000)) +
+    ggtitle("Initial Peek at Tuition Trends from 2004-2015") +
+    theme(
+      plot.title = element_text(hjust = 0.5),
+      axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)
+      ) +
+    ylab("Average Tuition")
+
+```
+<br>
+
+There are a few interesting patterns here:
+<br>
+
+|     Washington: Starts low, rises, and declines a bit.
+|     Wyoming: Always low.
+|     Vermont: Starts high and rises even more.
+|     Hawaii: Starts low but rises significantly.
+|     Ohio: Ends the period lower than it started.
+
+<br>
+
+I'll choose these five states because those patterns are unique.
+
+<br>
+
+Now let's see if those 30,000-foot trends are actually true by inspecting those five states more closely. First, we can take a closer look at their plots.
+
+<br>
+
+```{r exploringdeeper, echo=FALSE}
+
+# zooming in on the five states
+
+tidydata %>%
+  filter(State == "Washington" | State == "Wyoming" | State == "Vermont" | State == "Hawaii" | State == "Ohio") %>%
+  mutate(Year = as.numeric(Year)) %>%
+  ggplot() +
+    geom_point(aes(x = Year, y = AvgTuition, group = State)) +
+    facet_wrap(~ State) +
+    scale_x_continuous(breaks = c(2004, 2007, 2010, 2013, 2015)) +
+    ggtitle("A Closer Look at Tuition Trends in Five States") +
+    theme(
+      axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+      plot.title = element_text(hjust = 0.5)
+      ) +
+    ylab("Average Tuition")
+
+```
+<br>
+
+Looking at these plots more closely, we can now easily verify that our original hunches were correct. Average tuition trends are quite different in each state, and these five states show particularly interesting trend shapes.
+
+<br>
+
+Below is a plot of each state's tuition change over time using a line graph. It helps us to take a closer look and confirm some of our initial hunches above.
+
+```{r stateschange, echo=FALSE}
+
+# 5 state line graph 
+tidydata %>%
+  filter(State == "Washington" | State == "Wyoming" | State == "Vermont" | State == "Hawaii" | State == "Ohio") %>%
+  ggplot(aes(x = Year, y = AvgTuition, group = State, color = State)) +
+    geom_line() +
+    ggtitle("Tuition Trends in the 50 States, 2004-2015") +
+    theme(
+      axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+      plot.title = element_text(hjust = 0.5)
+      ) +
+    ylab("Average Tuition")
+
+```
+<br>
+
+We can make a few more conclusions using this clearer information. First, three states converged in terms of average tuition despite starting at very different levels.
+
+We can also see that for three of the five states, average tuition was increasing through a nationwide economic recession that occurred from December 2007 through June 2009. While that might seem odd, that the price of education was increasing while potential customers (students and their families) were having a rough economic go, it might tell us something fundamental about the relationship between the economy and higher education. Individuals might have been facing relatively worse job prospects during those times, and so had an even greater incentive than normal to invest in their education, thereby increasing overall demand (and thus, price) for higher education.
+
+However, we can see that the entire country obviously didn't have those exact dynamics at play. Wyoming and Ohio are examples.
+
+<br>
+
+## Bonus Question
+
+<br>
+
+I am from New Jersey and I went to Rutgers, the State University of New Jersey, for both undergrad (2008 - 2012) and grad school (2013-2014), during the period covered by this data. Below is a plot of tuition trends from 2004 through 2015 for all 50 states in one image. My state is blue!
+
+<br>
+
+```{r mystate, echo=FALSE}
+
+# BONUS QUESTION
+
+#creating line graph of 50 states with my state highlighted
+tidydata %>%
+  ggplot(aes(x = Year, y = AvgTuition, group = State)) +
+    geom_line(aes(color = ifelse(State == "New Jersey", "New Jersey", "Other States"))) +
+    scale_color_manual(values = c("blue", "gray"), name = "State") +
+    ggtitle("New Jersey!") +
+    theme(
+      axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+      plot.title = element_text(hjust = 0.5)
+      ) +
+    ylab("Average Tuition") +
+    theme_bw()
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```

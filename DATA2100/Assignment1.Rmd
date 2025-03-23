@@ -1,0 +1,311 @@
+---
+title: "HW1"
+author: "Ed Murphy"
+date: "2024-11-11"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+---
+
+<br>
+
+```{r setup, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(tidyverse)
+library(dslabs)
+library(formatR)
+library(here)
+
+# setting working directory
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = TRUE)
+knitr::opts_knit$set(root.dir = here())
+
+# Set options for tibble output and CRAN mirror
+options(tibble.width = Inf)
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+```
+ 
+<br>
+<br>
+
+### PROBLEM 1
+
+## Question #1
+
+Loading the gapminder data from the dslabs package using the data() function.
+
+```{r read, include=TRUE}
+
+# Problem 1, Question 1
+
+data(gapminder)
+
+head(gapminder)
+
+```
+
+<br>
+<br>
+
+## Question #2
+
+Using the class function to determine what type of object the data is. It's a data frame.
+
+```{r class}
+
+# Problem 1, Question 2
+
+class(gapminder)
+
+```
+
+<br>
+<br>
+
+## Question #3
+
+The `gapminder` data frame has `r nrow(gapminder)` rows and `r ncol(gapminder)` columns.
+
+```{r dimensions}
+
+# Problem 1, Question 3
+
+dim(gapminder)
+
+```
+
+<br>
+<br>
+
+## Question #4
+
+Printing the column names to the console.
+
+```{r print}
+
+# Problem 1, Question 4
+
+names(gapminder)
+
+```
+
+<br>
+<br>
+
+## Question #5
+
+There are no attributes for the life_expectancy or fertility variables.
+
+```{r attributes}
+
+# Problem 1, Question 5
+
+attributes(gapminder$life_expectancy)
+
+attributes(gapminder$fertility)
+
+```
+
+<br>
+<br>
+
+## Question #6
+
+The dataframe likely originated as a .csv file. Dr. Pettigrew described in the lecture that .csv files tend to be "what you see is what you get", and don't have hidden attributes. Hidden attributes tend to come up when the author of a Stata or SPSS data set decided to put them there.
+
+<br>
+<br>
+
+## Question #7
+
+Manually using the View() function, we can scroll to see that Norway had a population of 3,638,791 in 1962.
+
+```{r manual}
+
+# Problem 1, Question 7
+
+View(gapminder)
+
+```
+
+Alternatively, we can use bracket notation to find the population size by column and row.
+
+```{r bracket}
+
+# Problem 1, Question 7 (continued)
+
+gapminder[gapminder$country == "Norway" & gapminder$year == 1962, "population"]
+
+```
+
+<br>
+<br>
+
+## Question #8
+
+In the 21st century, two countries recorded life expectancy of less than 40 - Eritrea in 2000 and Haiti in 2010. Notably, neither country tended to have a life expectancy that low. They were single-year outliers. In Haiti's case, there was a significant earthquake that year. In Eritrea in 2000, the country was experiencing a massive armed conflict.
+
+
+```{r lowexpect}
+
+# Problem 1, Question 8
+
+gapminder[gapminder$life_expectancy < 40 & gapminder$year > 1999, c("country", "year", "life_expectancy")]
+
+```
+
+<br>
+<br>
+
+### PROBLEM 2, Part A
+
+## Question #1
+
+```{r loading, include=TRUE}
+
+# Problem 2, Part A, Question 1
+
+recent_grads <- read.csv(here("data", "materials/Assignments/recent-grads.csv"))
+
+```
+
+<br>
+<br>
+
+## Question #2
+
+```{r inspecting, include=TRUE}
+
+# Problem 2, Part A, Question 2
+
+dim(recent_grads)
+class(recent_grads)
+colnames(recent_grads)
+rownames(recent_grads)
+```
+
+<br>
+<br>
+
+## Question #3
+
+Unsurprisingly, there are attributes for the data frame. It has column names, a class, and pretty meaningless row names.
+
+```{r attr}
+
+# Problem 2, Part A, Question 3
+
+attributes(recent_grads)
+
+```
+
+Now as for checking for column attributes, I know that I could do `attributes()` for each column name, but I'm too lazy to do that. Instead, I'm going to use `str()` to see all attributes for the data frame, as Dr. Pettigrew showed in lecture. By doing so, we can see that none of the columns have attributes. As for why the columns don't have attributes, we're again left with the reality of .csv data. The creator of this data didn't seem to use SPSS or Stata or SAS to enrich the columns with attributes. What you see in csv is what you get.
+
+```{r attrcol}
+
+## Problem 2, Part A, Question 3 (continued)
+
+str(recent_grads)
+
+```
+
+<br>
+<br>
+
+### PROBLEM 2, PART B
+
+## Question 1
+
+The major category with the highest median income is `r recent_grads[which.max(recent_grads$Median), "Major_category"]`.
+
+```{r hi}
+
+## Problem 2, Part B, Question 1
+
+recent_grads[which.max(recent_grads$Median), "Major_category"]
+
+```
+
+The major category with the lowest median income is `r recent_grads[which.min(recent_grads$Median), "Major_category"]`.
+
+```{r low}
+
+## Problem 2, Part B, Question 1 (continued)
+
+recent_grads[which.min(recent_grads$Median), "Major_category"]
+
+```
+
+<br>
+<br>
+
+## QUESTION #2
+
+The average median salary of the majors in the `r recent_grads[which.max(recent_grads$Median), "Major_category"]` major category is `r format(mean(recent_grads[which.max(recent_grads$Median), "Median"]), scientific = FALSE, big.mark = ",")`
+.
+
+The average median salary of the majors in the `r recent_grads[which.min(recent_grads$Median), "Major_category"]` major category is `r format(mean(recent_grads[which.min(recent_grads$Median), "Median"]), scientific = FALSE, big.mark = ",")`
+.
+
+```{r hilow}
+
+## Problem 2, Part B, Question 2
+
+mean(recent_grads[which.max(recent_grads$Median), "Median"])
+
+mean(recent_grads[which.min(recent_grads$Median), "Median"])
+
+```
+
+<br>
+<br>
+
+## Question #3
+
+Here I am assuming that professions means "Major". There are no professions (majors) that are both top 10 in share of women and top 10 in median income.
+
+```{r conditional}
+
+## Problem 2, Part B, Question 3
+
+recent_grads$pctwomen <- recent_grads$Women / recent_grads$Total
+
+recent_grads$salaryrank <- rank(-recent_grads$Median, ties.method = "min")
+
+recent_grads$womenrank <- rank(-recent_grads$pctwomen, ties.method = "min")
+
+recent_grads[recent_grads$womenrank <= 10 & recent_grads$salaryrank <= 10, "Major"]
+
+
+```
+
+<br>
+<br>
+
+## Question #4
+
+There doesn't appear to be a STEM variable, so I created one based on "Major category". Based on that, STEM only has about 40% women. Given that women make up roughly 50% of the population, they are underrepresented.
+
+```{r stem}
+
+## Problem 2, Part B, Question 4
+
+stem <- c("Engineering", "Physical Sciences", "Computers & Mathematics", "Agriculture & Natural Resources", "Biology & Life Science")
+
+recent_grads$stem <- ifelse(recent_grads$Major_category %in% stem, 1, 0)
+
+stem <- recent_grads[recent_grads$stem == 1, ]
+
+stem_pct_women <- sum(stem$Women, na.rm=TRUE) / sum(stem$Total, na.rm=TRUE)
+
+stem_pct_women
+
+
+```
+<br>
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

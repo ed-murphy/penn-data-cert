@@ -1,0 +1,361 @@
+---
+title: "Assignment 2"
+author: "Ed Murphy"
+date: "2025-02-09"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+  word_document: default
+---
+
+<br>
+
+```{r setup, warning=FALSE, message=FALSE}
+
+# Load necessary libraries
+library(tidyverse)
+library(haven)
+library(ggplot2)
+library(here)
+
+# setting working directory for knitting
+knitr::opts_knit$set(root.dir = here())
+
+# make sure that knitted file isn't too wide
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60))
+
+# allow console to show all of wide tibbles
+options(tibble.width = Inf)
+
+```
+ 
+<br>
+
+## Load the Data
+
+```{r load}
+# Load the data
+nycmar <- read.csv(here("data", "NYC_2022_marathon_final.csv"))
+```
+
+<br>
+
+## Problem 1a
+
+The dataset has 47,601 observations and 5 variables. The variable `X` is an integer and just appears to be a random index. The variable `country` is a 3 character string that represents the country a runner is from. The variable `placeOverall` is an integer that indicates the order in which the runner finished the race, relative to other runners. The variable `timeOverall` is another character string that represents the time it took a runner to finish in the format hh:mm:ss. Finally the variable `ageGroupFromTo` is a character string that represents the oldest and youngest age of the age group that the runner falls into.
+
+
+```{r 1a}
+# Problem 1a
+nrow(nycmar)
+ncol(nycmar)
+str(nycmar)
+```
+
+<br>
+
+## Problem 1b
+
+```{r 1b}
+# Problem 1b
+nycmar <- nycmar %>%
+  mutate(
+    time_minutes = round(as.numeric(hms(timeOverall)) / 60, 2)
+  ) %>%
+  select(X, country, placeOverall, ageGroupFromTo, time_minutes)
+```
+
+<br>
+
+## Problem 1c
+
+The time in minutes to complete the 2022 NYC Marathon is centered on a mean of about 290. The median is about 285, so the data has a slight right skew, meaning that the distribution is slightly influenced by some outlier times at the longer end. This makes sense - you can only run a marathon so fast (around 2 hours), but there really isn't a limit on how long it can take you other than when the NYPD reopens the NYC streets. The standard deviation of 60 tells us that the majority of runners finished between 230 minutes and 350 minutes. Overall, the histogram is very steep on the left side of the mean, AKA many pro and competitive amateurs run fast times. But then on the right side of the mean, very casual runners with less training can take much more varied times to finish.
+
+```{r 1c, warning = FALSE}
+# Problem 1c
+mean(nycmar$time_minutes)
+median(nycmar$time_minutes)
+max(nycmar$time_minutes)
+min(nycmar$time_minutes)
+
+# R has variance and standard deviation functions, but they're for samples,
+# and this is population data, so we need to do those by hand
+variance <- sum((nycmar$time_minutes - mean(nycmar$time_minutes))^2)/length(nycmar$time_minutes)
+sd <- sqrt(variance)
+sd
+
+
+ggplot(nycmar, aes(x = time_minutes)) +
+  geom_histogram(bins = 50, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(xintercept = mean(time_minutes), color = "Mean"), linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = median(time_minutes), color = "Median"), linetype = "dashed", size = 1) +
+  scale_color_manual(name = 'Statistics', values = c('Mean' = 'red', 'Median' = 'green')) +
+  labs(title = 'NYC Marathon Time Distribution',
+       x = 'Time in Minutes',
+       y = 'Count') +
+  theme_minimal()
+
+
+```
+<br>
+
+## Problem 1d
+
+Using a manual calculation method, we find that 4.5% of runners had a time of 200 minutes or less.
+
+```{r 1d}
+# Problem 1d
+nycmar <- nycmar %>%
+  mutate(
+    under_200 = ifelse(time_minutes <= 200, 1, 0)
+  )
+
+sum(nycmar$under_200) / length(nycmar$time_minutes)
+
+```
+
+<br>
+
+## Problem 1e
+
+Using a manual calculation approach, we find that about 39% of runners finished with a time of 300 minutes or more.
+
+```{r 1e}
+# Problem 1e
+nycmar <- nycmar %>%
+  mutate(
+    over_300 = ifelse(time_minutes >= 300, 1, 0)
+  )
+
+sum(nycmar$over_300) / length(nycmar$time_minutes)
+```
+<br>
+
+## Problem 1f
+
+About 11% of runners finished faster than about 221 minutes.
+
+```{r 1f}
+# Problem 1f
+nycmar <- nycmar %>%
+  arrange(time_minutes)
+
+cutoff_11pct_index <- round(0.11 * length(nycmar$time_minutes))
+
+cutoff_11pct_time <- nycmar$time_minutes[cutoff_11pct_index]
+
+cutoff_11pct_time
+
+```
+<br>
+
+## Problem 1g
+
+About 5% of runners finished slower than about 399 minutes.
+
+```{r 1g}
+# Problem 1g
+nycmar <- nycmar %>%
+  arrange(desc(time_minutes))
+
+cutoff_5pct_index <- round(0.05 * length(nycmar$time_minutes))
+
+cutoff_5pct_time <- nycmar$time_minutes[cutoff_5pct_index]
+
+cutoff_5pct_time
+
+```
+
+<br>
+
+## Problem 1h
+
+```{r 1h}
+# Problem 1h
+percentiles <- c(10, 20, 30, 40, 50, 60, 70, 80, 90)
+
+mass_table <- data.frame(
+  mass = percentiles,
+  time_minutes = rep(NA_real_, length(percentiles))
+)
+
+nycmar <- nycmar %>%
+  arrange(time_minutes)
+
+for (i in percentiles) {
+  
+  cutoff_index <- round((i/100) * length(nycmar$time_minutes))
+  
+  cutoff_time <- nycmar$time_minutes[cutoff_index]
+  
+  mass_table[mass_table$mass == i, 'time_minutes'] <- cutoff_time
+  
+}
+
+mass_table
+
+```
+
+<br>
+
+## Problem 1i
+
+```{r 1i}
+#Problem 1i
+times <- c(202.40, 229.83, 247.90, 263.45, 277.65, 291.70, 307.38, 327.03, 351.83, 398.97)
+
+mass_table2 <- data.frame(
+  mass = rep(NA_real_, length(times)),
+  time_minutes = times
+)
+
+nycmar <- nycmar %>%
+  arrange(time_minutes)
+
+for (i in 1:length(times)) {
+  
+  given_time <- times[i]
+  
+  index <- which(nycmar$time_minutes == given_time)[1]
+  
+  percentile <- index / length(nycmar$time_minutes) * 100
+  
+  rounded_percentile <- round(percentile)
+  
+  mass_table2[i, 'mass'] <- rounded_percentile
+  
+}
+
+mass_table2
+
+```
+
+<br>
+
+## Problem 2a
+
+About 0.45% of runners obtained a time of 135 minutes or less.
+
+```{r 2a}
+# Problem 2a
+pnorm(135, mean = mean(nycmar$time_minutes), sd = sd)
+```
+<br>
+
+## Problem 2b
+
+About 0.39% of runners obtained a time of 450 minutes or more.
+
+```{r 2b}
+# Problem 2b
+1 - pnorm(450, mean = mean(nycmar$time_minutes), sd = sd)
+```
+
+<br>
+
+## Problem 2c
+
+Only 5% of runners have a time below 191.64 minutes.
+
+```{r 2c}
+# Problem 2c
+qnorm(0.05, mean = mean(nycmar$time_minutes), sd = sd)
+
+```
+<br>
+
+## Problem 2d
+
+Only 5% of runners had a time above 389.22 minutes. (This was calculated using the complement rule. "Above 5%" is the same as "below 95%", which can be entered easily in the qnorm function.)
+
+```{r 2d}
+#Problem 2d
+qnorm(0.95, mean = mean(nycmar$time_minutes), sd = sd)
+
+```
+
+<br>
+
+## Problem 2e
+
+```{r 2e}
+# Problem 2e
+percentiles <- c(10, 20, 30, 40, 50, 60, 70, 80, 90)
+
+mass_table3 <- data.frame(
+  mass = percentiles,
+  time_minutes = rep(NA_real_, length(percentiles))
+)
+
+mean_time <- mean(nycmar$time_minutes)
+
+for (i in percentiles) {
+  
+  time <- qnorm(i/100, mean = mean_time, sd = sd)
+  
+  mass_table3[mass_table$mass == i, 'time_minutes'] <- time
+  
+}
+
+mass_table3
+
+```
+
+<br>
+
+## Problem 2f
+
+```{r 2f}
+# Problem 2f
+times <- c(202.40, 229.83, 247.90, 263.45, 277.65, 291.70, 307.38, 327.03, 351.83, 398.97)
+
+mass_table4 <- data.frame(
+  mass = rep(NA_real_, length(times)),
+  time_minutes = times
+)
+
+for (i in 1:length(times)) {
+  
+  proportion <- pnorm(times[i], mean = mean_time, sd = sd)
+  
+  percentile <- 100 * proportion
+  
+  rounded_percentile <- round(percentile)
+  
+  mass_table4[i, 'mass'] <- rounded_percentile
+  
+}
+
+mass_table4
+
+```
+
+<br>
+
+## Problem 3
+
+The masses are quite similar at both ends of the distribution, but are actually notably different in the middle of the distribution. For example, a time of 291.70 minutes is the 55th percentile in the "by hand" method and 51st percentile in the "calculated" method. The largest difference between the two columns in our table is 4 percentage points. The two distributions are similar, but not identical. So the marathon times are pretty close to normally distributed, but aren't exactly normally distributed.
+
+```{r 3}
+# Problem 3
+merged_table <- full_join(
+  mass_table2,
+  mass_table4,
+  by = 'time_minutes'
+) %>%
+  rename(
+    'Mass from 2f' = mass.y,
+    'Mass from 1i' = mass.x
+  ) %>%
+  select('Mass from 1i', 'Mass from 2f', time_minutes)
+
+merged_table
+
+```
+<br>
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

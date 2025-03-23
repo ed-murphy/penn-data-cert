@@ -1,0 +1,173 @@
+---
+title: "HW5"
+author: "Ed Murphy"
+date: "2024-12-14"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+geometry: margin=0.5in
+---
+
+<br>
+
+```{r setup, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(tidyverse)
+library(formatR)
+library(readxl)
+library(weights)
+library(here)
+
+# setting working directory for knitting
+knitr::opts_knit$set(root.dir = here())
+
+# Set options for tibble output and CRAN mirror
+options(tibble.width = 100)
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+```
+ 
+<br>
+
+## Question a
+
+Here are a few considerations for our research design -   
+
+First, the population of convicted felons likely differs from the population as a whole. For example, felons could have different racial characteristics, income levels, and educational attainment. In order for this research design to give a good estimate of the causal effect, we would have to control for those differences. Otherwise, we wouldn't be able to say whether it was felon status or race/income/education that was responsible for driving voter registration and turnout.  
+
+Second, causation could theoretically work in the opposite direction of what we expect. Political engagement (being registered to vote and voting) could lead an individual to spend more time engaged in community or civic activities, which could reduce exposure to risky or criminal behavior. By contrast, in the proposed research design, we're assuming that causation could only go the other way.  
+
+Third, are there pre-treatment variables outside our research design that are affecting both voter behavior and felony conviction at the same time? Maybe a personality trait such as "impulsiveness" would make somebody relatively unlikely to register to vote and also relatively likely to get convicted for a felony.  
+
+Fourth, things are happening to convicted felons after their treatment (after their sentence is over). They might be more likely to be homeless resulting from years in prison outside the labor force or maintaining professional connections. We would need to see whether those things are driving the voting behavior.  
+
+In summary, the research design could be a good broad approach but it would have to control for differences in the felon population relative to the overall population, it would have to test that causation doesn't go the other way, and it would have to rule out any confounding variables that are driving both voter behavior and felon status - pre-treatment or post-treatment.  
+
+<br>
+
+## Question b
+
+# part (i)
+The authors are interested in studying whether newly released felons are more likely to register to vote if they receive an encouragement to register and vote.
+
+# part (ii)
+The authors build an overall sample of newly released felons. The control group receives no encouragement to vote. There are two treatment groups, which each receive an encouragement to register and vote, one a bit more strong than the other.
+
+# part (iii)
+The population of former felons is randomly assigned to three groups: 50% to control, 25% to treatment 1, and 25% to treatment 2. The assignment to those groups was done within blocks that were defined for individual crimes. Cases that couldn't be blocked were independently and randomly assigned. The authors note that there are no imbalances on age, time served in prison, time since release from prison, and 2008 turnout behavior among control and treatment groups.
+
+## Question c
+
+```{r question_c}
+# Question c
+load('materials/AssignmentData/felons.RData')
+felons_still_out <- felons[felons$returntoprison == 0, ]
+attributes(felons$treatment)
+felons_still_out$treatment_collapsed <- NA
+felons_still_out$treatment_collapsed[felons_still_out$treatment == 2 |
+                                       felons_still_out$treatment == 3] <- TRUE
+felons_still_out$treatment_collapsed[felons_still_out$treatment == 1] <- FALSE
+```
+
+<br>
+
+## Question d, part (i)
+
+There is no significant imbalance for any of the four pre-treatment covariates. The p-values are all much larger than 0.05 which means that the difference between the control and treatment averages are not statistically significant.
+
+```{r question_di}
+# Question d, part (i)
+
+pre_treat_covariates <- c('age', 'days_served', 'yrs_since_release', 'vote08')
+
+covariates_df <- data.frame(
+  covariate = character(),
+  treatment_mean = numeric(),
+  control_mean = numeric(),
+  p_value = numeric()
+)
+
+for (covariate in pre_treat_covariates) {
+  treat_covariate <- felons_still_out[[covariate]][felons_still_out$treatment_collapsed==1]
+  control_covariate <- felons_still_out[[covariate]][felons_still_out$treatment_collapsed==0]
+  
+  treat_mean <- mean(treat_covariate, na.rm = TRUE)
+  control_mean <- mean(control_covariate, na.rm = TRUE)
+  
+  t_test_result <- t.test(treat_covariate, control_covariate)
+  
+  covariates_df <- rbind(covariates_df, data.frame(
+    covariate = covariate,
+    treatment_mean = treat_mean,
+    control_mean = control_mean,
+    p_value = t_test_result$p.value
+  ))
+}
+
+covariates_df
+```
+
+## Question d, part (ii)
+
+No crimes were significant predictors of being in the treatment group. The p-values of each crime in the linear regression were all considerably larger than 0.05. This is a good thing for our research design. We want people to be put in the treatment group randomly, not because they committed one particular crime over another.
+
+```{r question_dii}
+# Question d, part (ii)
+model <- lm(treatment_collapsed ~ felony_type, data = felons_still_out)
+summary(model)
+```
+
+## Question d, part (iii)
+
+Once again, in a good sign for our research design, the linear regression approach shows that there is balance across treatment and control groups with respect to the covariates. The p values for the covariates are all above 0.05.
+
+
+```{r question_diii}
+# Question d, part (iii)
+model2 <- lm(treatment_collapsed ~ 
+               age + days_served + yrs_since_release + vote08, data = felons_still_out)
+summary(model2)
+```
+
+<br>
+
+## Question e
+
+The experiment did have an affect on whether ex-felons registered to vote. If you were treated at all, you were about 1.8% more likely to register to vote. Those in the treatment group were also more likely to vote in 2012, but very slightly - just 0.9% more likely.
+
+```{r question_e}
+# Question e
+model_register <- lm(registered ~ treatment_collapsed, data = felons_still_out)
+summary(model_register)
+
+model_vote <- lm(vote12 ~ treatment_collapsed, data = felons_still_out)
+summary(model_vote)
+```
+
+<br>
+
+## Question f
+
+When controlling for the pre-treatment covariates, we see a small treatment effect - the likelihood of registering to vote increases by 2.2%. However, there was not a statistically significant treatment effect when it came to actually voting.
+
+```{r question_f}
+# Question f
+model_register_control <- lm(registered ~ 
+                               treatment_collapsed + age + days_served + 
+                               yrs_since_release + vote08 + felony_type, 
+                             data = felons_still_out)
+summary(model_register_control)
+
+model_vote_control <- lm(vote12 ~ 
+                           treatment_collapsed + age + days_served + 
+                           yrs_since_release + vote08 + felony_type, 
+                         data = felons_still_out)
+summary(model_vote_control)
+```
+
+<br>
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

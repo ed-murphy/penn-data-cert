@@ -1,0 +1,406 @@
+---
+title: "Assignment 3"
+author: "Ed Murphy"
+date: "2025-02-17"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+  word_document: default
+---
+
+<br>
+
+```{r setup, warning=FALSE, message=FALSE}
+
+# Load necessary libraries
+library(tidyverse)
+library(haven)
+library(ggplot2)
+library(here)
+
+# setting working directory for knitting
+knitr::opts_knit$set(root.dir = here())
+
+# set seed for entire analysis
+set.seed(9142024)
+```
+ 
+<br>
+
+## Load the Data
+
+```{r load}
+# Load the data
+evs <- read.csv(here("data" , "Electric_vehicles_WashingtonState.csv"))
+
+# replace 0 range with NA
+evs <- evs %>%
+  mutate(
+    Electric_Range = ifelse(
+      CAFV_Elegibility == 'Eligibility unknown as battery range has not been researched',
+      NA,
+      Electric_Range
+    )
+  )
+```
+
+<br>
+
+## Problem 1a
+
+The distribution of `Model_Year` is not normal. First, the distribution is clearly not symmetric about the mean. To the left of the population mean, there are many different model years that contain a moderate number of observations, but to the right of the population mean, there are just three total model years, one of which contains 25% of the entire sample (model year 2023). Second, the distribution is fairly skewed to the left. The median model year is `r median(evs$Model_Year, na.rm = TRUE)`, but the mean model year is `r mean(evs$Model_Year, na.rm = TRUE)`. The difference between the population median and mean is because there are a few outliers to the left end of the distribution that are pulling the mean to the left.
+
+
+```{r 1a}
+# Problem 1a
+summary(evs$Model_Year)
+mean(evs$Model_Year, na.rm = TRUE)
+median(evs$Model_Year, na.rm = TRUE)
+max(evs$Model_Year)
+min(evs$Model_Year)
+var(evs$Model_Year, na.rm = TRUE)
+sd(evs$Model_Year, na.rm = TRUE)
+
+ggplot(evs, aes(x = Model_Year)) +
+  geom_histogram(bins = 30, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(
+    xintercept = mean(Model_Year),
+    color = "PopMean"), linetype = "dashed", linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c('PopMean' = 'red')) +
+  labs(title = 'Model Years of Electric Vehicles in Washington State',
+       x = 'Model Year',
+       y = 'Count') +
+  theme_minimal()
+```
+
+<br>
+
+## Problem 1b
+
+The population mean of the `Model_Year` variable is `r mean(evs$Model_Year, na.rm = TRUE)`.
+
+```{r 1b}
+# Problem 1b
+population_mean <- mean(evs$Model_Year, na.rm = TRUE)
+```
+
+<br>
+
+## Problem 1c
+
+```{r 1c}
+# Problem 1c
+sample <- sample(evs$Model_Year, size = 1000, replace = TRUE)
+sample_mean <- mean(sample, na.rm = TRUE)
+```
+
+The mean of the sample's `Model_Year` variable is `r sample_mean`. That's slightly different than the population mean of `r population_mean`.
+
+<br>
+
+## Problem 1d
+
+```{r 1d}
+# Problem 1d
+sample_means <- data.frame(
+  sample = 1:1999,
+  mean_model_year = rep(NA_real_, 1999)
+)
+
+for (i in 1:1999) {
+  sample_i <- sample(evs$Model_Year, size = 1000, replace = TRUE)
+  mean_i <- mean(sample_i, na.rm = TRUE)
+  sample_means[i, 'mean_model_year'] <- mean_i
+}
+
+ggplot(sample_means, aes(x = mean_model_year)) +
+  geom_histogram(bins = 30, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(
+    xintercept = mean(evs$Model_Year, na.rm = TRUE),
+    color = "PopMean"), linetype = "dashed", linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c('PopMean' = 'red')) +
+  labs(title = 'Sample Means of Model Year (sample size = 1000)',
+       x = 'Sample Mean of Model Year',
+       y = 'Count') +
+  theme_minimal()
+```
+
+The sampling distribution of the sample mean appears normally distributed around the population mean. Digging in further, we can also see that it has a sampling mean of `r mean(sample_means$mean_model_year, na.rm = TRUE)` and a sampling median of `r median(sample_means$mean_model_year, na.rm = TRUE)`, which are very close, indicating no skew of the sampling distribution. In addition, we see that observations are primarily stacked around the population mean and tail off in each direction toward the extremes.
+
+<br>
+
+## Problem 1e
+
+The histogram in `1d` has the following minimum and maximum values: `r range(sample_means$mean_model_year)`. That is a range of `r max(sample_means$mean_model_year) - min(sample_means$mean_model_year)` years.
+
+<br>
+
+## Problem 1f
+
+```{r 1f}
+# Problem 1f
+sample_means_10 <- data.frame(
+  sample = 1:1999,
+  mean_model_year = rep(NA_real_, 1999)
+)
+
+for (i in 1:1999) {
+  sample_i <- sample(evs$Model_Year, size = 10, replace = TRUE)
+  mean_i <- mean(sample_i, na.rm = TRUE)
+  sample_means_10[i, 'mean_model_year'] <- mean_i
+}
+
+ggplot(sample_means_10, aes(x = mean_model_year)) +
+  geom_histogram(bins = 30, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(
+    xintercept = mean(evs$Model_Year, na.rm = TRUE),
+    color = "PopMean"), linetype = "dashed", linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c('PopMean' = 'red')) +
+  labs(title = 'Sample Means of Model Year (sample size = 10)',
+       x = 'Sample Mean of Model Year',
+       y = 'Count') +
+  theme_minimal()
+```
+
+Now that we're using a sample size of 10 instead of 1,000, our sampling distribution is much wider, with a range of `r max(sample_means_10$mean_model_year) - min(sample_means_10$mean_model_year)`. Granted, the mean (`r mean(sample_means_10$mean_model_year, na.rm = TRUE)`) and median (`r median(sample_means_10$mean_model_year, na.rm = TRUE)`) are still pretty close indicating no major skew. But we have more "bumpiness" in the histogram, i.e. some model year bins are more frequent than their counterparts that are closer to the mean.
+
+The point here is that when your sample size becomes a lot smaller, you have a chance of getting sample means that reflect rarer values from the population. With a sample size of 1000, we had essentially no chance of getting a sample mean of model year 2018, because 2018 is relatively rare in our original population data. But with a sample size of 10, we are able to get some sample means like that.
+
+Bottom line, this time, with the sample size of 10, we're not really producing something that can safely be assumed to be "normal".
+
+<br>
+
+## Problem 1g
+
+The population maximum for `Model_Year` is `r max(evs$Model_Year, na.rm = TRUE)`.
+
+```{r 1g}
+# Problem 1g
+population_max <- max(evs$Model_Year, na.rm = TRUE)
+```
+
+<br>
+
+## Problem 1h
+
+The histogram of sample maximums shows us that the distribution of sample maximums is obviously not distributed normally. There are only two values - 2024 and 2025. In other words, every time we took a 1000-observation sample from our population of 200,000, the maximum value in our sample was very likely to be 2025, and if it wasn't 2025, then it was 2024. We never got a 1000-observation sample with a maximum model year of 2023 or earlier. This makes sense intuitively. The maximum is a statistic that only relies on the presence of 1 value. In order to get a sample maximum of 2023, you'd have to make it through a 1000-observation sample without getting a single 2024 or 2025 model year. That's obviously incredible unlikely.
+
+```{r 1h}
+# Problem 1h
+sample_maxes <- data.frame(
+  sample = 1:1999,
+  max_model_year = rep(NA_real_, 1999)
+)
+
+for (i in 1:1999) {
+  sample_i <- sample(evs$Model_Year, size = 1000, replace = TRUE)
+  max_i <- max(sample_i, na.rm = TRUE)
+  sample_maxes[i, 'max_model_year'] <- max_i
+}
+
+ggplot(sample_maxes, aes(x = max_model_year)) +
+  geom_histogram(bins = 30, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(
+    xintercept = max(evs$Model_Year, na.rm = TRUE),
+    color = "PopMax"), linetype = "dashed", linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c('PopMax' = 'red')) +
+  labs(title = 'Sample Maxes of Model Year (sample size = 1000)',
+       x = 'Sample Max of Model Year',
+       y = 'Count') +
+  theme_minimal()
+```
+
+<br>
+
+## Problem 2a
+
+`Electric_Range` is very clearly not normally distributed.
+
+```{r 2a, warning=FALSE}
+# Problem 2a
+
+summary(evs$Electric_Range)
+mean(evs$Electric_Range, na.rm = TRUE)
+median(evs$Electric_Range, na.rm = TRUE)
+max(evs$Electric_Range, na.rm = TRUE)
+min(evs$Electric_Range, na.rm = TRUE)
+var(evs$Electric_Range, na.rm = TRUE)
+sd(evs$Electric_Range, na.rm = TRUE)
+
+ggplot(evs, aes(x = Electric_Range)) +
+  geom_histogram(bins = 30, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(
+    xintercept = mean(Electric_Range, na.rm = TRUE),
+    color = "PopMean"), linetype = "dashed", linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c("PopMean" = 'red')) +
+  labs(title = 'Range (Miles) of Electric Vehicles in Washington State',
+       x = 'Model Year',
+       y = 'Count') +
+  theme_minimal()
+```
+
+<br>
+
+## Problem 2b
+
+The population mean of `Electric_Range` is `r mean(evs$Electric_Range, na.rm = TRUE)`.
+
+```{r 2b}
+# Problem 2b
+population_mean_elecrange <- mean(evs$Electric_Range, na.rm = TRUE)
+```
+
+<br>
+
+## Problem 2c
+
+```{r 2c}
+# Problem 2c
+sample_elec_range <- sample(evs$Electric_Range, size = 1000, replace = TRUE)
+sample_mean_elec_range <- mean(sample_elec_range, na.rm = TRUE)
+```
+
+The mean of `Electric_Range` in the our first 1000-observation sample is `r mean(sample_elec_range, na.rm = TRUE)` miles. That's a bit off from the population mean of `r population_mean_elecrange`.
+
+<br>
+
+## Problem 2d
+
+```{r 2d}
+# Problem 2d
+sample_means_elec_range_1000 <- data.frame(
+  sample = 1:1999,
+  mean_elec_range = rep(NA_real_, 1999)
+)
+
+for (i in 1:1999) {
+  sample_i <- sample(evs$Electric_Range, size = 1000, replace = TRUE)
+  mean_i <- mean(sample_i, na.rm = TRUE)
+  sample_means_elec_range_1000[i, 'mean_elec_range'] <- mean_i
+}
+
+ggplot(sample_means_elec_range_1000, aes(x = mean_elec_range)) +
+  geom_histogram(bins = 30, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(
+    xintercept = mean(evs$Electric_Range, na.rm = TRUE),
+    color = "PopMean"), linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c('PopMean' = 'red')) +
+  labs(title = 'Sample Means of Electric Range (sample size = 1000)',
+       x = 'Sample Mean of Electric Range',
+       y = 'Count') +
+  theme_minimal()
+```
+The sampling distribution for the sample mean of `Electric_Range` appears normally distributed around the population mean. It has a sampling mean of `r mean(sample_means_elec_range_1000$mean_elec_range, na.rm = TRUE)` and a sampling median of `r median(sample_means_elec_range_1000$mean_elec_range, na.rm = TRUE)`, which are very close, indicating no skew of the sampling distribution. In addition, we see that observations are primarily stacked around the mean and tail off in each direction toward the extremes.
+
+<br>
+
+## Problem 2e
+
+Visually, the histogram in `2d` runs from an electric range of `r min(sample_means_elec_range_1000$mean_elec_range)` miles to an electric range of `r max(sample_means_elec_range_1000$mean_elec_range)` miles. That is a range of `r max(sample_means_elec_range_1000$mean_elec_range) - min(sample_means_elec_range_1000$mean_elec_range)` miles.
+
+<br>
+
+## Problem 2f
+
+```{r 2f, warning=FALSE}
+sample_means_elec_range_10 <- data.frame(
+  sample = 1:1999,
+  mean_elec_range = rep(NA_real_, 1999)
+)
+
+for (i in 1:1999) {
+  sample_i <- sample(evs$Electric_Range, size = 10, replace = TRUE)
+  mean_i <- mean(sample_i, na.rm = TRUE)
+  sample_means_elec_range_10[i, 'mean_elec_range'] <- mean_i
+}
+
+ggplot(sample_means_elec_range_10, aes(x = mean_elec_range)) +
+  geom_histogram(bins = 30, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(
+    xintercept = mean(evs$Electric_Range, na.rm = TRUE),
+    color = "PopMean"), linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c('PopMean' = 'red')) +
+  labs(title = 'Sample Means of Electric Range (sample size = 10)',
+       x = 'Sample Mean of Electric Range',
+       y = 'Count') +
+  theme_minimal()
+```
+
+In looking at the histogram, the distribution looks like it could be normal. However, we can see that the distribution is much wider now, with a range of `r max(sample_means_elec_range_10$mean_elec_range) - min(sample_means_elec_range_10$mean_elec_range)` miles. This is way too wide to be normally distributed. Also, the distribution is not really bell shaped at all. There is a steep linear increase on the left side of the population mean, and then a roughly bell shaped distribution on the right side of the population mean.
+
+<br>
+
+## Problem 2g
+
+```{r 2g}
+# Problem 2g
+population_max_elecrange <- max(evs$Electric_Range, na.rm = TRUE)
+```
+
+The population maximum of `Electric_Range` is `r max(evs$Electric_Range, na.rm = TRUE)`.
+
+<br>
+
+## Problem 2h
+
+The sampling distribution of the maximum estimator of `Electric_Range` is not normally distributed. We can see that when drawing samples of 1,000 from the population of 240,000, we only ever get sample maxes of 337, 330, or 322 - the population's three highest values. In other words, even after taking 1,999 samples of 1,000 observations, we never got a single sample with a max of 308 or below. It was just going to be incredibly rare to get a sample that didn't include one of the top 3 values in the population.
+
+```{r 2h}
+# Problem 2h
+sample_maxes_elecrange <- data.frame(
+  sample = 1:1999,
+  max_elec_range = rep(NA_real_, 1999)
+)
+
+for (i in 1:1999) {
+  sample_i <- sample(evs$Electric_Range, size = 1000, replace = TRUE)
+  max_i <- max(sample_i, na.rm = TRUE)
+  sample_maxes_elecrange[i, 'max_elec_range'] <- max_i
+}
+
+ggplot(sample_maxes_elecrange, aes(x = max_elec_range)) +
+  geom_histogram(bins = 30, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(
+    xintercept = max(evs$Electric_Range, na.rm = TRUE),
+    color = "PopMax"), linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c('PopMax' = 'red')) +
+  labs(title = 'Sample Maxes of Electric Range (sample size = 1000)',
+       x = 'Sample Max of Electric Range',
+       y = 'Count') +
+  theme_minimal()
+```
+<br>
+
+## Problem 3a
+
+At larger sample sizes (i.e. 1,000), the sampling distribution of the sample mean estimator is essentially perfectly normal. However, at smaller sample sizes (i.e. 10), that normality doesn't hold. The sampling distribution becomes much wider. This gives us a clue about how large of a sample size we want when we are designing a study and want to infer things about a population from a single sample.
+
+<br>
+
+## Problem 3b
+
+The sampling distribution for the sample maximum estimator isn't normal. It doesn't matter if the sample size is 1000. The sample maximum is completely determined by the presence of a single observation. In other words, to get a sample maximum at the low end of the population distribution, you have to avoid pulling a single observation of higher values into your sample. Just logically - you're almost always going to pull in at least a single value from the high end of the distribution. And indeed, our data bears this out. It's an interesting proof of why you can't assume normality for the sampling distributions of estimators other than the mean.
+
+<br>
+
+## Problem 3c
+
+As stated above in `3b`, no we cannot. For example, the sampling distribution of the maximum won't be normal. Likewise, we can reason that the sampling distribution of the minimum won't be normal either. When an estimator is determined by the presence of just a single observation in a sample (i.e. minimum, maximum), sampling distributions are going to look very different than when an estimator is based on all of the observations pulled into the sample (i.e. mean).
+
+<br>
+
+## Problem 3d
+
+As stated above in 3a, the sample size is incredibly important. It's what drives the normality of the sampling distribution of the mean. At a sample size of just 10, for example, individual samples can (by chance) have a mean that's really far off from the population mean. We saw this in `1f` and `2f`, where dropping the sample size from 1000 to 10 led to much wider sampling distributions. By contrast, at a sample size of 1000, it's much more likely that your individual samples will look more similar to the population. That's because there are enough values in each sample that it's going to be unlikely that all of them come from a single extreme part of the population distribution.
+
+Another key takeaway is that we achieved essentially perfect normality of the sampling distribution at a sample size of 1000. And we did so despite 1000 being an incredibly small percentage of the population size of 240,000. Less than 1% of it in fact. This is profound - it tells us that we don't need a sample size that's 50% or 20% or even 10% the size of the population in order to assume normality of the sampling distribution. In our examples in this assignment, we demonstrated that a sample size of about 0.4% the size of the population will do just fine.
+
+<br>
+
+
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

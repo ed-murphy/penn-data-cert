@@ -1,0 +1,270 @@
+---
+title: "HW4"
+author: "Ed Murphy"
+date: "2024-12-10"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+  word_document: default
+---
+
+<br>
+
+```{r setup, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(tidyverse)
+library(formatR)
+library(readxl)
+library(weights)
+library(here)
+
+# setting working directory for knitting
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60))
+knitr::opts_knit$set(root.dir = here())
+
+# Set options for tibble output and CRAN mirror
+options(tibble.width = Inf)
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+```
+ 
+<br>
+
+## Problem 1, question a
+
+```{r 1a}
+# Problem 1, Question (a)
+dates <- 1:365
+birthdays <- sample(dates, 500, replace = TRUE)
+!(1 %in% birthdays)
+```
+
+<br>
+
+## Problem 1, question b
+
+```{r 1b}
+# Problem 1, Question (b)
+dates <- 1:365
+results <- logical(1000)
+
+for (i in 1:1000) {
+  birthdays <- sample(dates, 500, replace = TRUE)
+  results[i] <- !(1 %in% birthdays)
+}
+```
+<br>
+
+## Problem 1, question c
+
+```{r 1c}
+# Problem 1, Question (c)
+mean(results)
+```
+
+<br>
+
+## Problem 1, question d
+
+```{r 1d}
+# Problem 1, Question (d)
+nojan1bday.function <- function(x){
+  dates <- 1:365
+  results <- logical(1000)
+  for (i in 1:1000) {
+    birthdays <- sample(dates, x, replace = TRUE)
+    results[i] <- !(1 %in% birthdays)
+  }
+return(mean(results))
+}
+
+nojan1bday.function(750)
+```
+
+<br>
+
+## Problem 1, question e
+
+What we are doing under the hood is taking a certain group size, running 1,000 simulations, taking the percentage of those simulations in which there is no Jan 1 birthday, and then moving on to the next group size.  
+
+What we're seeing in the results is that as group size grows, the probability that there will be no Jan 1 birthday approaches 0. For example, by the time you get to a group size of 1500, you might get the occasional simulation where there is no Jan 1 birthday. Like 1 in every 100 times. But 99 out of 100 times, there's going to be at least one birthday of Jan 1.
+
+
+
+```{r 1e}
+# Problem 1, Question (e)
+nojan1bday.function <- function(x){
+  dates <- 1:365
+  results <- logical(1000)
+  for (i in 1:1000) {
+    birthdays <- sample(dates, x, replace = TRUE)
+    results[i] <- !(1 %in% birthdays)
+  }
+return(mean(results))
+}
+
+prob_group_size <- numeric(1001)
+
+for (i in 500:1500) {
+  prob_group_size[i-499] <- nojan1bday.function(i)
+}
+
+plot(500:1500,
+     prob_group_size,
+     type = 'p',
+     xlab = 'Group Size',
+     ylab = 'Probability of no Jan 1 bday',
+     main = 'Probability of no Jan 1 bday by Group Size'
+)
+
+```
+<br>
+
+## Problem 2, Question a
+
+The mean of the weight is 1. The total of the weights matches the total number of survey respondents. This is a generally a good idea because it makes the weighted sample size match the unweighted sample size, which is important for statistical calculations such as estimating the variance. In practice, we are giving over-represented people a weight less than 1, and under-represented people a weight above 1 (but less than ~7). We want to stick around the average weight being 1.
+
+```{r 2a}
+# Problem 2, Question (a)
+survey_data <- haven::read_sav(here("data", "july-2019-sm-poll.sav"))
+mean(survey_data$weight)
+```
+<br>
+
+## Problem 2, Question b
+
+The respondent with the highest weight is a Hispanic woman. They have such a high weight because Hispanic women are underrepresented in our sample. A quick Google search suggests that around 9-10% of the adult US population is both Hispanic and female. Our survey, on the other hand, only has 488 respondents that are Hispanic and female - or about 3%. So we are weighting up the female Hispanic respondents that we have in order to make our sample more representative of the population of interest.
+
+```{r 2b}
+# Problem 2, Question (b)
+survey_data[which.max(survey_data$weight), ]
+str(survey_data$race)
+str(survey_data$gender)
+table(survey_data$race, survey_data$gender)
+```
+
+<br>
+
+## Problem 2, Question c
+
+The unweighted average age of people in the dataset is 52.1. There are no missing values for age, so we can use weighted.mean() instead of using with(). The weighted average age is 45.0. The fact that the weighted average age is less than the unweighted average age means that our sample was a bit older than the population of interest. We had a bunch of older people that were weighted down, and our younger people were weighted up.
+
+```{r 2c}
+## Problem 2, Question (c)
+mean(survey_data$age)
+any(is.na(survey_data$age))
+weighted.mean(survey_data$age, w = survey_data$weight)
+```
+
+<br>
+
+## Problem 2, Question d
+
+When we apply the weights, the groups that decrease are White, Asian, and Other. By contrast, Black and Hispanic both increase when weights are used. The changes when using weights are very small for Asian and Other.
+
+```{r 2d}
+## Problem 2, Question (d)
+str(survey_data$race)
+survey_data$race <- as_factor(survey_data$race)
+levels(survey_data$race) <- c("White", "Black", "Hispanic", "Asian", "Other")
+unweighted <- prop.table(table(survey_data$race))
+proportion_df <- as.data.frame(unweighted)
+colnames(proportion_df) <- c("Race", "UnweightedProp")
+proportion_df$WeightedProp <- wpct(survey_data$race, weight = survey_data$weight)
+proportion_df$Diff <- proportion_df$WeightedProp - proportion_df$UnweightedProp
+proportion_df
+```
+
+<br>
+
+## Problem 2, Question e
+
+About 59% of people said they would be somewhat or very willing to pay higher taxes to pay for infrastructure improvements. Within Republicans, it's 49.3%. Within Democrats, it's 54.5%.
+
+```{r 2e}
+## Problem 2, Question (e)
+attributes(survey_data$taxes_improve_infrastructure)
+attributes(survey_data$party)
+
+with(survey_data[survey_data$taxes_improve_infrastructure != 5, ],
+     wpct(taxes_improve_infrastructure, weight))
+
+with(survey_data[survey_data$taxes_improve_infrastructure != 5 & survey_data$party == 1, ],
+     wpct(taxes_improve_infrastructure, weight))
+
+with(survey_data[survey_data$taxes_improve_infrastructure != 5 & survey_data$party == 2, ],
+     wpct(taxes_improve_infrastructure, weight))
+```
+
+<br>
+
+## Problem 2, Question f
+
+In the American political discourse, a familiar concept is the relative levels of trust in government exhibited by Republicans and Democrats. Let's get a little more nuanced. This survey has data on levels of trust in federal government and levels of trust in state government. In every state, there are people who 'Just About Always' trust federal and/or state government. One interesting question is... where do the folks who 'Just About Always' trust their own state government most outweigh the folks who 'Just About Always' trust the federal government. We can call this "state pride".  
+
+The plot below shows that New Mexico leads the way on this metric. More than any other state, it has a group of people who 'Just About Always' trust the state government that is larger than people who 'Just About Always' trust the federal government. Why is this interesting? The null hypothesis would be that this relationship would tend toward 0. Of course, states will tend to have their own flavor when it comes to "trust of government", and we might expect some states to be trusting or not trusting of government in general. But what causes a discrepancy of trust between levels of government? When we look at the top and bottom 10 states on our discrepancy measure, we see that obvious red and blue states are both near the extremes. This data tells us that clearly something else is going on aside from the state's prominent party ideology.
+
+
+
+```{r 2f}
+## Problem 2, Question (f)
+survey_data$party <- as_factor(survey_data$party)
+survey_data$trust_fed_gov <- as_factor(survey_data$trust_fed_gov)
+survey_data$trust_state_gov <- as_factor(survey_data$trust_state_gov)
+survey_data$state <- as_factor(survey_data$state)
+
+states <- unique(survey_data$state)
+
+support.by.state <- data.frame(state = states,
+                          full_trust_fed = NA,
+                          full_trust_state = NA)
+
+for (state in states) {
+
+  full_trust_fed <- with(survey_data[survey_data$state == state, ],
+                         wpct(trust_fed_gov, weight)[1])
+  
+  support.by.state[support.by.state$state == state, 'full_trust_fed'] <- full_trust_fed
+  
+  full_trust_state <- with(survey_data[survey_data$ state == state, ],
+                           wpct(trust_fed_gov, weight)[2])
+  
+  support.by.state[support.by.state$state == state, 'full_trust_state'] <- full_trust_state
+  
+}
+
+support.by.state$state_advantage <- support.by.state$full_trust_state - 
+  support.by.state$full_trust_fed
+support.by.state$state <- factor(support.by.state$state, 
+                                 levels = support.by.state$state[order(
+                                   -support.by.state$state_advantage)])
+
+top_n <- 10
+bottom_n <- 10
+
+support.by.state.top <- head(support.by.state[order(-support.by.state$state_advantage), ], top_n)
+support.by.state.bottom <- head(support.by.state[order(support.by.state$state_advantage), ], bottom_n)
+
+
+ggplot(support.by.state.top, aes(x = state, y = state_advantage)) +
+  geom_bar(stat = 'identity') +
+  labs(title = 'States with the Greatest Full Trust Advantage\nOver the Federal Government',
+       x = 'State',
+       y = "'Just About Always' Trust in State Gov minus\n'Just About Always' Trust in Federal Gov") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+ggplot(support.by.state.bottom, aes(x = state, y = state_advantage)) +
+  geom_bar(stat = 'identity') +
+  labs(title = 'States with the Lowest Full Trust Advantage\nOver the Federal Government',
+       x = 'State',
+       y = "'Just About Always' Trust in State Gov minus\n'Just About Always' Trust in Federal Gov") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+```
+
+<br>
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

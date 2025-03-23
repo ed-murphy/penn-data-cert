@@ -1,0 +1,354 @@
+---
+title: "Assignment 5"
+author: "Ed Murphy"
+date: "2025-03-03"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+  word_document: default
+---
+
+  
+
+```{r setup, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(tidyverse)
+library(ggplot2)
+library(haven)
+library(here)
+
+# setting working directory for knitting
+knitr::opts_knit$set(root.dir = here())
+```
+
+  
+
+## Load the data
+
+```{r load}
+# load the data
+performance <- read_dta(here("data", "Lindo_et_al-AEJ2010.dta"))
+```
+
+  
+
+## Problem 1a
+
+The variable `GPA_year1` has a mean of `r mean(performance$GPA_year1, na.rm=TRUE)` and a median of `r median(performance$GPA_year1, na.rm=TRUE)`, which, along with the histogram, indicates a slight skew in the data where lower outliers are pulling the mean down below the median. The histogram shows that the data is clearly not normally distributed, in that the case counts rise steadily from 0 through the mean, and then seem to drop more slowly from the mean through a GPA of 4.0, after which there is a steep dropoff with relatively few cases of a GPA above 4.0.
+
+
+```{r 1a}
+# Problem 1a
+summary(performance$GPA_year1, na.rm=TRUE)
+sd(performance$GPA_year1, na.rm=TRUE)
+
+ggplot(performance, aes(x = GPA_year1)) +
+  geom_histogram(bins = 40, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(
+    xintercept = mean(GPA_year1),
+    color = "Mean"), linetype = "dashed", linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c('Mean' = 'red')) +
+  labs(title = 'GPA in Year 1 at University',
+       x = 'GPA',
+       y = 'Count') +
+  theme_minimal()
+```
+
+
+## Problem 1b
+
+```{r 1b}
+# Problem 1b
+table(performance$sex)
+```
+  
+
+
+## Problem 1c
+
+
+```{r 1c}
+# Problem 1c
+male_1y_gpa <- mean(performance$GPA_year1[performance$sex=='M'])
+female_1y_gpa <- mean(performance$GPA_year1[performance$sex=='F'])
+male_sd_squared <- sd(performance$GPA_year1[performance$sex=='M']) ^ 2
+female_sd_squared <- sd(performance$GPA_year1[performance$sex=='F']) ^ 2
+
+t = (male_1y_gpa - female_1y_gpa) /
+    (sqrt((male_sd_squared/16981) + (female_sd_squared/27381)))
+
+```
+
+The value of the test statistic is `r t`.
+
+  
+
+## Problem 1d
+
+```{r 1d}
+# Problem 1d
+t95 <- qnorm(0.975)
+```
+
+The absolute value of the test statistic is `r abs(t)`, which is much smaller than our `t95` of `r t95`. This means that we cannot reject the null hypothesis. In other words, we can't say there's a difference between the male and female first year mean GPA.
+
+  
+## Problem 1e
+
+
+```{r 1e}
+# Problem 1e
+pval <- 2 * (1 - pnorm(abs(t)))
+pval
+```
+The p-value associated with our test statistic of `r t` is `r pval`. The p-value indicates that our test statistic is not very extreme.
+
+  
+## Problem 1f
+
+
+```{r 1f}
+# Problem 1f
+t.test(performance$GPA_year1[performance$sex=='M'],
+       performance$GPA_year1[performance$sex=='F'])
+```
+Using `t.test` generates a test statistic of `r t.test(performance$GPA_year1[performance$sex=='M'], performance$GPA_year1[performance$sex=='F'])$statistic` and a p-value of `r t.test(performance$GPA_year1[performance$sex=='M'], performance$GPA_year1[performance$sex=='F'])$p.value`. With those values, we still cannot reject the null hypothesis. The reason that the t statistic and p-values are slightly different when we use `t.test` is because `t.test` is using a t-distribution, whereas when we did it by hand, for convenience, we were assuming a normal distribution. Those are slightly different.
+
+  
+## Problem 1g
+
+
+```{r 1g}
+# Problem 1g
+ggplot(performance, aes(x = GPA_year1, fill = sex)) +
+  geom_histogram(bins = 40, position = "identity", color = 'black', alpha = 0.5) +
+  geom_vline(aes(
+    xintercept = mean(GPA_year1[sex == 'M']),
+    color = "Male"), linetype = "solid", linewidth = 1) +
+  geom_vline(aes(
+    xintercept = mean(GPA_year1[sex == 'F']),
+    color = "Female"), linetype = "dashed", linewidth = 1) +
+  scale_fill_manual(name = 'Counts', values = c('M' = 'steelblue', 'F' = 'orange')) +
+  scale_color_manual(name = 'Means', values = c('Male' = 'blue', 'Female' = 'red')) +
+  labs(title = 'GPA in Year 1 at University by Sex',
+       x = 'GPA',
+       y = 'Count') +
+  theme_minimal()
+```
+The histogram shows us visually that the sample means for `GPA_year1` are very close for males and females. Now all of our statistics from the earlier steps make even more sense. The means just aren't that different, period. Statistics aren't going to allow us to reject the null hypothesis.
+  
+
+## Problem 1h
+
+Our sample does not allow us to reject the null hypothesis that males and females have the same GPA in their first year of college in the population. This is what I would have expected. This population of males and females is not the same thing as males and females in the general population. This population of males and females has in common with each other that they performed well enough in high school to get accepted into college. So why would we expect variations across gender in their performance during their first year of college? For example, maybe in the general population, one of the genders has characteristics that make them perform differently - like men are more likely to miss assignment due dates (making that up). Even if that was the case in the general population, those men probably didn't get into college. In our population of interest - we've weeded out a lot of the reason for differences between the genders.
+
+  
+
+
+## Problem 2b
+
+```{r 2b}
+# Problem 2b
+table(performance$bpl_north_america)
+```
+  
+
+
+## Problem 2c
+
+
+```{r 2c}
+# Problem 2c
+NA_1y_gpa <- mean(performance$GPA_year1[performance$bpl_north_america==1])
+nonNA_1y_gpa <- mean(performance$GPA_year1[performance$bpl_north_america==0])
+NA_sd_squared <- sd(performance$GPA_year1[performance$bpl_north_america==1]) ^ 2
+nonNA_sd_squared <- sd(performance$GPA_year1[performance$bpl_north_america==0]) ^ 2
+
+t_prob2 = (NA_1y_gpa - nonNA_1y_gpa) /
+          (sqrt((NA_sd_squared/38633) + (nonNA_sd_squared/5729)))
+
+```
+
+The value of the test statistic is `r t_prob2`.
+
+  
+
+## Problem 2d
+
+```{r 2d}
+# Problem 2d
+t95_prob2 <- qnorm(0.975)
+```
+
+The absolute value of the test statistic is `r abs(t_prob2)`, which is slightly smaller than our `t95` of `r t95_prob2`. This means that we cannot reject the null hypothesis. In other words, we can't say there's a difference between the mean first year GPAs of students born in North America and those born outside of North America.
+
+  
+## Problem 2e
+
+
+```{r 2e}
+# Problem 2e
+pval_prob2 <- 2 * (1 - pnorm(abs(t_prob2)))
+pval_prob2
+```
+The p-value associated with our test statistic of `r t_prob2` is `r pval_prob2`. The p-value indicates that our test statistic is bordering on extreme. However, we aren't breaking the 0.05 threshold, so at the 95% confidence level, we're still failing to reject the null hypothesis.
+
+  
+## Problem 2f
+
+
+```{r 2f}
+# Problem 2f
+t.test(performance$GPA_year1[performance$bpl_north_america==1],
+       performance$GPA_year1[performance$bpl_north_america==0])
+```
+Using `t.test` generates a test statistic of `r t.test(performance$GPA_year1[performance$bpl_north_america==1], performance$GPA_year1[performance$bpl_north_america==0])$statistic` and a p-value of `r t.test(performance$GPA_year1[performance$bpl_north_america==1], performance$GPA_year1[performance$bpl_north_america==0])$p.value`. With those values, we still cannot reject the null hypothesis. The reason that the t statistic and p-values are slightly different when we use `t.test` is because `t.test` is using a t-distribution, whereas when we did it by hand, for convenience, we were assuming a normal distribution. Those are slightly different.
+
+  
+## Problem 2g
+
+```{r 2g}
+# Problem 2g
+ggplot(performance,
+       aes(x = GPA_year1,
+           fill = factor(bpl_north_america, labels = c('Outside NA', 'NA')))) +
+  geom_histogram(bins = 40, position = "identity", color = 'black', alpha = 0.5) +
+  geom_vline(aes(
+    xintercept = mean(GPA_year1[bpl_north_america == 1]),
+    color = "North America"), linetype = "solid", linewidth = 1) +
+  geom_vline(aes(
+    xintercept = mean(GPA_year1[bpl_north_america == 0]),
+    color = "Outside North America"), linetype = "dashed", linewidth = 1) +
+  scale_fill_manual(name = 'Counts', values = c('NA' = 'gray', 'Outside NA' = 'blue')) +
+  scale_color_manual(name = 'Birthplace',
+                     values = c('North America' = 'green',
+                                'Outside North America' = 'darkred')) +
+  labs(title = 'GPA in Year 1 at University by Birthplace',
+       x = 'GPA',
+       y = 'Count') +
+  theme_minimal()
+```
+The histogram shows us visually that the sample means for `GPA_year1` are very close for those born in North America and those born outside of North America. Now all of our statistics from the earlier steps make even more sense. The sample means just aren't that different, period. Statistics aren't going to allow us to reject the null hypothesis.
+  
+
+## Problem 2h
+
+Our sample does not allow us to say that those born inside and outside of North America have different GPAs during their first year of college. I'm not sure that I would have expected this. I would have thought that maybe universities have less or more stringent requirements for international admissions, and thereby we would see statistically different GPAs for those students after year 1. However, this isn't shown by the data. By contrast, the data would be consistent with a world in which universities are holding domestic and international applicants to the same standards, to the extent that is possible. Like with the male/female results, what we're looking at here is a population of interest that has much in common - they got into college.
+
+  
+
+## Problem 3
+
+```{r 3}
+# Problem 3
+table(performance$age_at_entry)
+performance$very_young <- ifelse(performance$age_at_entry <= 18, 1, 0)
+```
+
+
+## Problem 3b
+
+```{r 3b}
+# Problem 3b
+table(performance$very_young)
+```
+  
+
+
+## Problem 3c
+
+
+```{r 3c}
+# Problem 3c
+vy_1y_gpa <- mean(performance$GPA_year1[performance$very_young==1])
+notvy_1y_gpa <- mean(performance$GPA_year1[performance$very_young==0])
+vy_sd_squared <- sd(performance$GPA_year1[performance$very_young==1]) ^ 2
+notvy_sd_squared <- sd(performance$GPA_year1[performance$very_young==0]) ^ 2
+
+t_prob3 = (vy_1y_gpa - notvy_1y_gpa) /
+          (sqrt((vy_sd_squared/16677) + (notvy_sd_squared/27685)))
+
+```
+
+The value of the test statistic is `r t_prob3`.
+
+  
+
+## Problem 3d
+
+```{r 3d}
+# Problem 3d
+t95_prob3 <- qnorm(0.975)
+```
+
+The absolute value of the test statistic is `r abs(t_prob3)`, which is much larger than our `t95` of `r t95_prob3`. This means that we reject the null hypothesis. In other words, there is a difference between the first year mean GPA of students who are very young (entering university at 17 or 18 years old) and those who are older.
+
+  
+## Problem 3e
+
+
+```{r 3e}
+# Problem 3e
+pval_prob3 <- 2 * (1 - pnorm(abs(t_prob3)))
+pval_prob3
+```
+The p-value associated with our test statistic of `r t_prob3` is `r pval_prob3`. The p-value indicates that our test statistic is very extreme.
+
+  
+## Problem 3f
+
+
+```{r 3f}
+# Problem 3f
+t.test(performance$GPA_year1[performance$very_young==1],
+       performance$GPA_year1[performance$very_young==0])
+```
+Using `t.test` generates a test statistic of `r t.test(performance$GPA_year1[performance$very_young==1], performance$GPA_year1[performance$very_young==0])$statistic` and a p-value of `r t.test(performance$GPA_year1[performance$very_young==1], performance$GPA_year1[performance$very_young==0])$p.value`. With those values, we still cannot reject the null hypothesis. The reason that the t statistic and p-values are slightly different when we use `t.test` is because `t.test` is using a t-distribution, whereas when we did it by hand, for convenience, we were assuming a normal distribution. Those are slightly different.
+
+  
+## Problem 3g
+
+
+```{r 3g}
+# Problem 3g
+ggplot(performance,
+       aes(x = GPA_year1,
+           fill = factor(very_young, labels = c('Not Very Young (19-21)',
+                                                'Very Young (17-18)')))) +
+  geom_histogram(bins = 40, position = "identity", color = 'black', alpha = 0.5) +
+  geom_vline(aes(
+    xintercept = mean(GPA_year1[very_young == 1]),
+    color = "Very Young (17-18)"), linetype = "solid", linewidth = 1) +
+  geom_vline(aes(
+    xintercept = mean(GPA_year1[very_young == 0]),
+    color = "Not Very Young (19-21)"), linetype = "dashed", linewidth = 1) +
+  scale_fill_manual(name = 'Counts', values = c('Very Young (17-18)' = 'steelblue',
+                                                'Not Very Young (19-21)' = 'orange')) +
+  scale_color_manual(name = 'Means', values = c('Very Young (17-18)' = 'blue',
+                                                'Not Very Young (19-21)' = 'red')) +
+  labs(title = 'GPA in Year 1 at University by Age at College Entry',
+       x = 'GPA',
+       y = 'Count') +
+  theme_minimal()
+```
+The histogram shows us visually that the sample means for `GPA_year1` are fairly different for students who entered university at age 17-18 vs. those who entered when older, i.e. age 19-21. Now all of our statistics from the earlier steps make even more sense. The null hypothesis that the means of the two groups are the same, probably isn't true. We reject the null hypothesis.
+  
+
+## Problem 3h
+
+Our statistical testing indicates that those who enter college at 17-18 years old do not have the same GPA after year 1 as students who enter college at age 19-21 years old. My initial guess would have been that the GPAs for the older students would be higher, given a higher level of maturity. Maybe they took a gap year to think about what they wanted to study. Maybe they worked a job with their high school diploma and hated the job, and were extra motivated to do well in their first year of college so they didn't ever have to go back to that job. But interestingly, the data are showing that the very young students have the higher first-year GPAs, on average. Perhaps what's going on here is that entering college at 17-18 years old means that you were a really star student, maybe even to the point of finishing secondary school a bit early. Maybe the older students were just those who struggled to finish secondary school on time, making it reasonable to think they'd also struggle, relatively speaking, during their first year of college, leaving the younger students with the higher GPAs.
+
+
+
+
+
+
+  
+  
+
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

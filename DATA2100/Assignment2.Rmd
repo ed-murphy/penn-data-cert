@@ -1,0 +1,352 @@
+---
+title: "HW2"
+author: "Ed Murphy"
+date: "2024-11-18"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+---
+
+<br>
+
+```{r setup, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(tidyverse)
+library(formatR)
+library(here)
+
+# setting working directory
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = TRUE)
+knitr::opts_knit$set(root.dir = here())
+
+# Set options for tibble output and CRAN mirror
+options(tibble.width = Inf)
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+```
+ 
+<br>
+
+```{r 1a, results = 'hide'}
+
+# Problem 1, Question (a)
+
+recent_grads <- read.csv(here("data", "materials/Assignments/recent-grads.csv"))
+
+dim(recent_grads)
+
+head(recent_grads)
+
+# The `recent-grads.csv` data has 173 rows and 21 columns. The unit of analysis of the data is college majors.
+
+```
+
+<br>
+
+```{r 1b, results = 'hide'}
+
+# Problem 1, Question (b)
+
+length(unique(recent_grads$Major_category))
+
+# There are 16 unique major categories in the data.
+
+```
+<br>
+
+```{r 1c, results = 'hide'}
+
+# Problem 1, Question (c)
+
+sort(table(recent_grads$Major_category), decreasing=T)
+
+# Because the rows (unit of analysis) in the data is majors, then finding the major category with the most majors is quite easy. It's really just finding the major category with the most appearances. The table function shows us that this is Engineering, and it has 29 majors.
+
+```
+<br>
+
+```{r 1d, results = 'hide'}
+
+# Problem 1, Question (d)
+
+sort(table(recent_grads$Major_category), decreasing=F)
+
+# The interdisciplinary major category technically has the fewest majors with 1, but maybe that's not what we want. It's more of a catch-all for combinations of major categories. Communications & journalism is the major category with the next fewest majors, with 4.
+
+```
+<br>
+
+```{r 1e, results = 'hide'}
+
+# Problem 1, Question (e)
+
+sum(recent_grads$Women, na.rm=T)
+
+sum(recent_grads$Women, na.rm=T) / sum(recent_grads$Total, na.rm=T)
+
+# There are 3,895,228 women in the data, which is 57.5% percent of the total number of people in the data.
+
+```
+<br>
+
+```{r 1f, results = 'hide'}
+
+# Problem 1, Question (f)
+
+recent_grads$Pct_Women <- recent_grads$Women / recent_grads$Total
+
+recent_grads$Major[which.max(recent_grads$Pct_Women)]
+
+recent_grads$Pct_Women[which.max(recent_grads$Pct_Women)]
+
+recent_grads$Major[which.min(recent_grads$Pct_Women)]
+
+recent_grads$Pct_Women[which.min(recent_grads$Pct_Women)]
+
+# The major with the highest percentage of women graduates is Early childhood education. It is 96% women. The major "Military Technologies" had the lowest percentage of women, with no women at all.
+
+
+
+```
+<br>
+
+```{r 1g, results = 'hide'}
+
+# Problem 1, Question (g)
+
+comms <- recent_grads[recent_grads$Major_category == "Communications & Journalism", ]
+
+sum(comms$Total)
+
+sum(comms$Full_time_year_round) / sum(comms$Total)
+
+# There were 392,601 people who majored in a field within Communications and Journalism. Of those, 54.6% were employed full-time year-round.
+
+```
+<br>
+
+```{r 1h, results = 'hide'}
+
+# Problem 1, Question (h)
+
+recent_grads$spread2575 <- recent_grads$P75th - recent_grads$P25th
+
+```
+
+<br>
+
+```{r 1i, results = 'hide'}
+
+# Problem 1, Question (i)
+
+recent_grads$UR_below_6 <- ifelse(recent_grads$Unemployment_rate < 0.06, 1, 0)
+
+recent_grads_UR <- recent_grads[recent_grads$UR_below_6 == 1, ]
+
+recent_grads_UR$Major[which.max(recent_grads_UR$spread2575)]
+
+recent_grads_UR$Major[which.min(recent_grads_UR$spread2575)]
+
+# Of the majors with an unemployment rate of less than 6%, Astronomy and Astrophysics had the largest spread in salaries. Military Technologies had the lowest spread.
+
+```
+<br>
+
+```{r 2a, results = 'hide'}
+
+# Problem 2, Question (a)
+
+load("materials/Assignments/exit-poll-2016.RData")
+
+dim(exit)
+
+names(exit)
+
+# The dataset has 5,914 rows and 12 columns. At first glance, it looks like the unit of observation might be a survey response from a person. I.e. 1 row is equal to 1 person's response. But then we see duplicate ids across rows. And then we see that, for example, the favorable.cand variable has multiple values within each id, which are shown on separate rows. So right now, before cleaning, the unit of observation in this data is "person responses about a candidate". We'll want to clean it so that the unit of observation (rows) is really "person responses".
+
+```
+<br>
+
+```{r 2b, results = 'hide'}
+
+# Problem 2, Question (b)
+
+exit_clean <- pivot_wider(exit, names_from = favorable.cand, values_from = favorable.rating)
+
+nrow(exit_clean) == length(unique(exit_clean$id))
+
+```
+
+<br>
+
+```{r 2c, results = 'hide'}
+
+## Problem 2, Question (c)
+
+attributes(exit_clean$trump)
+
+exit_clean$trump <- recode(
+  exit_clean$trump,
+  '1' = 'favorable',
+  '2' = 'unfavorable',
+  '9' = 'omit'
+)
+
+attributes(exit_clean$clinton)
+
+exit_clean$clinton <- recode(
+  exit_clean$clinton,
+  '1' = 'favorable',
+  '2' = 'unfavorable',
+  '9' = 'omit'
+)
+
+```
+
+<br>
+
+```{r 2d, results = 'hide'}
+
+## Problem 2, Question (d)
+
+attributes(exit_clean$educ.hs)
+
+exit_clean <-
+  pivot_longer(exit_clean, 7:10, names_to = 'educ', values_to = 'value') %>%
+  filter(value == 1 | value == 99) %>%
+  mutate(educ = ifelse(value == 99, NA, educ)) %>%
+  select(-c(value)) %>%
+  group_by(id) %>%
+  slice_head(n = 1) %>%
+  ungroup()
+
+exit_clean$educ <- recode(
+  exit_clean$educ,
+  'educ.hs' = 'hs',
+  'educ.somecoll' = 'some college',
+  'educ.bach' = 'bachelors',
+  'educ.postgrad' = 'postgrad' 
+  )
+
+```
+
+<br>
+
+```{r 2e, results = 'hide'}
+
+## Problem 2, Question (e)
+
+exit_clean <- separate(
+  exit_clean,
+  col = 'sex.age.race',
+  into = c('sex', 'age', 'race'),
+  sep = ' '
+)
+
+table(exit_clean$sex)
+exit_clean$sex[exit_clean$sex == 'unknown'] <- NA
+table(exit_clean$sex)
+
+table(exit_clean$age)
+exit_clean$age[exit_clean$age == -999] <- NA
+table(exit_clean$age)
+
+table(exit_clean$race)
+exit_clean$race[exit_clean$race == 'NA'] <- NA
+table(exit_clean$race)
+
+```
+
+<br>
+
+```{r 2f, results = 'hide'}
+
+## Problem 2, Question (f)
+
+attributes(exit_clean$PRSPA16)
+table(exit_clean$PRSPA16)
+
+exit_clean$third.party <- recode(
+  exit_clean$PRSPA16,
+  '0' = NA_real_,
+  '1' = 0,
+  '2' = 0,
+  '3' = 1,
+  '4' = 1,
+  '9' = 1
+)
+
+exit_clean$PRSPA16 <- NULL
+
+```
+
+<br>
+
+```{r 2g, results = 'hide'}
+
+## Problem 2, Question (g)
+
+attributes(exit_clean$married)
+table(exit_clean$married)
+
+exit_clean$married <- recode(
+  exit_clean$married,
+  '2' = 0,
+  '1' = 1
+)
+
+exit_clean$PRSPA16 <- NULL
+
+```
+
+<br>
+
+```{r 2h, results = 'hide'}
+
+## Problem 2, Question (h)
+
+attributes(exit_clean$PHIL3)
+table(exit_clean$PHIL3)
+
+exit_clean$PHIL3 <- recode(
+  exit_clean$PHIL3,
+  '1' = 'Liberal',
+  '2' = 'Moderate',
+  '3' = 'Conservative'
+)
+
+attributes(exit_clean$partyid)
+
+exit_clean$partyid <- recode(
+  exit_clean$partyid,
+  '1' = 'Democrat',
+  '2' = 'Republican',
+  '3' = 'Independent',
+  '4' = 'Something else'
+)
+
+exit_clean$PRSPA16 <- NULL
+
+```
+
+<br>
+
+```{r 2i, results = 'hide'}
+
+## Problem 2, Question (i)
+
+exit_clean <- rename(exit_clean,
+       'respondent.id' = 'id',
+       'political.philosophy' = 'PHIL3',
+       'party.id' = 'partyid',
+       'clinton.opinion' = 'clinton',
+       'trump.opinion' = 'trump',
+       'third.party.voter' = 'third.party'
+       )
+
+```
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

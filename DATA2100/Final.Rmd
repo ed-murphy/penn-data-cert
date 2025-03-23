@@ -1,0 +1,312 @@
+---
+title: "Final Exam"
+author: "Ed Murphy"
+date: "2024-12-18"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+geometry: margin=0.5in
+---
+
+<br>
+
+```{r setup, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(tidyverse)
+library(formatR)
+library(readxl)
+library(weights)
+library(haven)
+library(here)
+
+# setting working directory for knitting
+knitr::opts_knit$set(root.dir = here())
+
+# Set options for tibble output and CRAN mirror
+options(tibble.width = 100)
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+
+
+```
+ 
+<br>
+
+# Part 1, Question a, Subquestion i
+
+The variable `region` measures the geographic region of the interview.
+
+<br>
+
+# Part 1, Question a, Subquestion ii
+
+There are no missing values for this specific variable. While the attributes function does show the possible reserve codes such as "don't know" or "not imputable", which would be NA, this particular variable actually has 0 instances for those. All of the responses are valid regions. 
+
+```{r question_1aii}
+
+# Part 1, Question a, Subquestion ii
+
+gss <- read_dta(here("data", "General_Social_survey_2022.dta"))
+
+attributes(gss$region)
+
+table(gss$region)
+
+gss$region <- as.numeric(gss$region)
+
+gss$region <- recode(
+  gss$region,
+  '1' = 'new england',
+  '2' = 'middle atlantic',
+  '3' = 'east north central',
+  '4' = 'west north central',
+  '5' = 'south atlantic',
+  '6' = 'east south atlantic',
+  '7' = 'west south central',
+  '8' = 'mountain',
+  '9' = 'pacific'
+)
+
+table(gss$region)
+
+```
+
+<br>
+
+# Part 1, Question b, Subquestion i
+
+The range of weight values in the survey can be found in two different ways.  
+
+First, manually using summary(). Second, by finding the maximum and minimum and subtracting one from the other. Both are shown below.  
+
+Either way, the smallest value for `wtssps` is 0.07397 and the largest value is 14.27246, so the range is about 14.199.
+
+
+```{r question_1bi}
+
+# Part 1, Question b, Subquestion i
+
+summary(gss$wtssps)
+
+range_of_weight_values <- gss[which.max(gss$wtssps), 'wtssps'] - gss[which.min(gss$wtssps), 'wtssps']
+range_of_weight_values
+```
+
+<br>
+
+# Part 1, Question b, Subquestion ii
+
+The individual with the highest weight is a 21 year old white male with high school as the highest level of education completed.
+
+```{r question_1bii}
+
+# Part 1, Question b, Subquestion ii
+columns_of_interest <- c("race", "age", "degree", "sex")
+gss[which.max(gss$wtssps), columns_of_interest]
+```
+
+# Part 1, Question c, Subquestion i
+
+White people account for 72.0% of the unweighted total and 74.4% of the weighted total. White people are up-weighted in the survey.  
+
+Black people account for 16.2% of the unweighted total and 13.3% of the weighted total. Black people are down-weighted in the survey.  
+
+People of other races account for 11.8% of the unweighted total and 12.3% of the weighted total. People of other races are up-weighted in the survey.
+
+
+```{r question_1ci}
+
+# Part 1, Question c, Subquestion i
+
+table(gss$race)
+
+gss$race <- as.numeric(gss$race)
+
+gss$race <- recode(
+  gss$race,
+  '1' = 'white',
+  '2' = 'black',
+  '3' = 'other'
+)
+
+prop.table(table(gss$race))
+
+wpct(gss$race, weight = gss$wtssps)
+
+```
+
+<br>
+
+# Part 1, Question c, Subquestion ii
+
+As Professor Lapinski explained in lecture, one reason to over-sample is to get a large enough sample of a sub-group that would otherwise be under-represented in the sample because the group is small or is relatively hard to reach.
+
+<br>
+
+# Part 2, Question a, Subquestion i
+
+The most evictions for one state in one year was Georgia in 2011 with 75,330.
+
+```{r question_2ai}
+
+# Part 2, Question a, Subquestion i
+
+eviction <- read.csv(here("data", "materials/AssignmentData/State_Eviction_data.csv"))
+eviction[which.max(eviction$evictions), ]
+```
+
+<br>
+
+# Part 2, Question a, Subquestion ii
+
+South Dakota had the lowest average eviction filing rate, at 0.44.
+
+```{r question_2aii}
+
+# Part 2, Question a, Subquestion ii
+
+avg_eviction_filing_rate <- aggregate(evictionfilingrate ~ name,
+                                      mean,
+                                      data = eviction)
+
+avg_eviction_filing_rate[which.min(avg_eviction_filing_rate$evictionfilingrate), ]
+```
+
+<br>
+
+# Part 2, Question a, Subquestion iii
+
+There are 34 states included in the dataset.
+
+```{r question_2aiii}
+
+# Part 2, Question a, Subquestion iii
+
+length(unique(eviction$name))
+```
+
+<br>
+
+# Part 2, Question b, Setup
+
+```{r question_2bsetup}
+
+# Part 2, Question b, Setup
+demographics <- read.csv(here("data", "materials/AssignmentData/State_Demographics.csv"))
+
+state_names <- c()
+
+for (i in 1:nrow(demographics)) {
+  if(demographics$FIPS[i] %% 1000 == 0) {
+    state_names <- c(state_names, demographics$County[i])
+  }
+}
+
+state_names
+length(state_names)
+
+```
+
+<br>
+
+# Part 2, Question b, Subquestion i
+
+```{r question_2bi}
+
+# Part 2, Question b, Subquestion i
+
+demographics$is_state <- NA
+```
+
+<br>
+
+# Part 2, Question b, Subquestion ii
+
+```{r question_2bii}
+
+# Part 2, Question b, Subquestion ii
+
+for (i in 1:nrow(demographics)) {
+  if(demographics$FIPS[i] %% 1000 == 0) {
+    demographics$is_state[i] <- 1
+  } else {
+    demographics$is_state[i] <- 0
+  }
+}
+
+```
+
+<br>
+
+# Part 2, Question c, Subquestion i
+
+The `table` function shows us that 50 observations have a value of 1 and are thus states.
+
+```{r question_2ci}
+
+# Part 2, Question c, Subquestion i
+
+table(demographics$is_state)
+
+state_demographics <- demographics[demographics$is_state == 1, ]
+
+```
+
+<br>
+
+# Part 2, Question c, Subquestion ii
+
+I used a left join to merge the state demographic data onto the eviction data. The result is that our original eviction dataset is made more robust because it now includes some baseline demographic variables for each row. The one tradeoff here is that we don't really know what year our demographic data come from, and we are applying it to all years of the eviction data. For example, we have data on the poverty rate for 0-17 year olds in Alaska. Which year is that for? We don't know, so we merge that poverty rate onto all years of the Alaska eviction data (2000-2016). In the following analysis, our implicit assumption will basically be that demographics in each state are stable from 2000 - 2016.
+
+```{r question_2cii}
+
+# Part 2, Question c, Subquestion ii
+
+merged_data <- merge(x = eviction,
+                     y = state_demographics,
+                     by = 'FIPS',
+                     all.x = TRUE
+)
+
+
+```
+
+<br>
+
+# Part 2, Question d
+
+The linear regression shows that the eviction rate does depend on the poverty rate in a statistically significant way, as the p-value is very much smaller than 0.05 (it's even smaller than 0.001). The estimate tells us that for each 1 percentage point increase in the poverty rate, eviction rate can be expected to increase by about 0.16 percentage points.
+
+```{r question_2d}
+
+# Part 2, Question d, Subquestion i & Subquestion ii
+model <- lm(evictionrate ~ Poverty_Rate_ACS,
+            data = merged_data)
+
+summary(model)
+```
+
+<br>
+
+# Part 2, Question e
+
+I examined the relationship between the eviction filing rate and the variable `NonEnglishHHPct`, which is the share of households that do not speak English. I was curious as to whether a higher rate of non-English speakers would translate to a higher rate of eviction filings, perhaps because language barriers might create confusion between tenant and landlord that is not related to finances.  
+
+However, after running the regression and examining the results, I can see that there is not a statistically significant relationship between the eviction filing rate and `NonEnglishHHPct`.  
+
+The results indicate a positive correlation (i.e. a 1 percentage point increase in `NonEnglishHHPct` is correlated with a 0.24 percentage point increase in the eviction filing rate), however the p-value of 0.0717 tells us that the correlation is not statistically significant.
+
+```{r question_2e}
+
+# Part 2, Question e
+
+model2 <- lm(evictionfilingrate ~ NonEnglishHHPct,
+             data = merged_data)
+
+summary(model2)
+```
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

@@ -1,0 +1,215 @@
+---
+title: 'Homework Assignment #3'
+
+author: "Ed Murphy"
+
+date: "February 12, 2024"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE) 
+library(tidyverse) 
+library(nycflights13)
+```
+
+## Question #1
+
+We can begin to inspect the relationship between clarity and price by plotting them together. Price is the dependent variable that varies with the independent variable of clarity - so clarity goes on the x axis and price goes on the y axis. In the data, clarity is categorical and price is continuous. So we can use a boxplot.
+
+```{r clarity_price, echo=FALSE}
+ggplot(data = diamonds, mapping=aes(x=clarity,y=price)) +
+  geom_boxplot() +
+  xlab("Clarity") +
+  ylab("Price (USD)") +
+  ggtitle("Diamonds: Clarity vs. Price") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+In the boxplot above, the x axis is showing clarity categories that increase in clarity from left to right. At first glance, this plot tells us that clearer diamonds are lower in price. This trend is counterintuitive. There could be cases where "less clear" diamonds are desired for certain jewelry trends, much like yellow colored diamonds are sometimes desirable for niche pieces of jewelry. However, that edge case is unlikely to be this pronounced in the data. Let's see if something else is going on.
+
+We can take a look at clarity versus size, as measured by carats. Maybe the clearest diamonds also happen to be pretty small, and maybe smallness of a diamond has its own relationship with price. First, let's look at clarity versus size (in carats). Once again, we're comparing a categorical variable to a continuous one. So let's use a boxplot.
+
+```{r clarity_carat, echo=FALSE}
+ggplot(data = diamonds, mapping=aes(x=clarity,y=carat)) +
+  geom_boxplot() +
+  xlab("Clarity") +
+  ylab("Size (carats)") +
+  ggtitle("Diamonds: Clarity vs. Size") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+There we have it, higher-clarity diamonds are also more small. This checks out intuitively. Clarity seems like a rare quality in rocks that are being removed from the ground. Same with size. The chances that a diamond will have clarity and size would then be relatively low.
+
+So now let's take a look at the relationship between size and price. Two continuous variables. So we can just use a scatter plot.
+
+```{r plot_carat_price, echo=FALSE}
+ggplot(data = diamonds, mapping=aes(x=carat,y=price)) +
+  geom_point() +
+  xlab("Size (carats)") +
+  ylab("Price (USD)") +
+  ggtitle("Diamonds: Size vs. Price") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+We don't need to dive in too deeply here, because we can see the general idea that larger diamonds are more expensive to some degree.
+
+So then putting it all together: as clarity increases, price decreases. That seems odd. But that's because as clarity increases, size decreases. And as size increases, price increases. So in the relationship between clarity and price, we have countervailing factors. Clarity is better, i.e. increases price, but clarity also tends to come in smaller diamonds, which reduces price. To illustrate this point, we can control for size and look at the relationship between clarity and price.
+
+```{r clarity_price_ctrl, echo=FALSE}
+diamonds %>%
+  filter(carat==1.00) %>%
+  ggplot(mapping=aes(x=clarity,y=price)) +
+    geom_boxplot() +
+    xlab("Clarity") +
+    ylab("Price (USD)") +
+    ggtitle("Diamonds: Clarity vs. Price at 1.00 carats") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+Filtering on the 1.00 carat diamonds, we see that an increase in clarity leads to an increase in price. And filtering on 1.00 carat diamonds isn't a problem because there are `r diamonds%>%filter(carat==1.00)%>%nrow()` diamonds of that size.
+
+
+
+## Question #2
+
+Below is a plot of the number of flights for each destination and the average arrival delay for each destination. The plot shows that when a destination has very few flights from the NYC area, its average arrival delay can fall into a very wide range. That makes sense - a few flights can be early or late to their destination based on a completely random set of factors. However, for destinations that have at least a few thousand flights over the course of a year, average arrival delay settles into a narrower range - spanning from "on time" to "under 20 minutes delayed". That's not really surprising. Over that large of a sample size, there will be wildly early and wildly late flights, but outliers will cancel each other out and the average will be roughly on time.
+
+```{r flights_delay, echo=FALSE}
+
+flights %>%
+  group_by(dest) %>%
+  filter(!is.na(arr_delay)) %>%
+  summarize(
+    num_flights = n(),
+    avg_arr_delay = mean(arr_delay)
+  ) %>%
+  ggplot(mapping = aes(x=num_flights, y=avg_arr_delay)) +
+    geom_point() +
+    xlab("Number of Flights in 2013") +
+    ylab("Average Arrival Delay (mins)") +
+    ggtitle("NYC Flight Destinations in 2013") +
+    theme(plot.title = element_text(hjust = 0.5))
+  
+```
+
+
+## Question #3, Part A
+
+Below is a plot of average speed against distance. It shows that as flight distance increases, the minimum average speed increases and the maximum average speed increases. The slowest 1000-mile flight travels at a slower average speed than the slowest 2500-mile flight.
+
+```{r distance_speed, echo=FALSE}
+flights %>%
+  mutate(
+    time_hrs = (minute + hour*60)/60,
+    avg_speed = distance/time_hrs
+    ) %>%
+  ggplot(mapping = aes(x=distance, y=avg_speed)) +
+    geom_point() +
+    xlab("Distance (miles)") +
+    ylab("Average Speed (mph)") +
+    ggtitle("Flights from NYC: Distance vs. Average Speed") +
+    theme(plot.title = element_text(hjust = 0.5))
+
+``` 
+
+The outliers here are interesting. There is a collection of 5000-mile flights. These must be flights to Hawaii. Let's check.
+
+```{r hawaii_check, echo=FALSE}
+flights %>%
+  filter(distance>4500) %>%
+  group_by(dest) %>%
+  summarize (
+    count = n()
+  ) %>%
+  rename(destination = dest) %>%
+  rename(number_of_flights = count)
+```
+
+Those flights are all to Hawaii. They are the only ones that spend time over an ocean. Planes must be allowed to go really fast when they're over an ocean instead of land. So let's remove those flights and look at the rest.
+
+
+```{r distance_speed_continental, echo=FALSE}
+flights %>%
+  filter(dest!="HNL") %>%
+  mutate(
+    time_hrs = (minute + hour*60)/60,
+    avg_speed = distance/time_hrs
+    ) %>%
+  ggplot(mapping = aes(x=distance, y=avg_speed)) +
+    geom_point() +
+    geom_smooth() +
+    xlab("Distance (miles)") +
+    ylab("Average Speed (mph)") +
+    ggtitle("Distance vs. Average Speed for Domestic Flights from NYC, excluding Hawaii") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+All in all, it seems safe to say that longer flights tend to travel at faster average speeds.
+
+
+
+## Question #3, Part B
+
+For flights that are delayed departing, only 27.7% arrive early or on time. By contrast, for flights that don't have a departure delay (i.e. those flights that leave on time), 79.6% arrive early or on time.
+
+```{r on_time_table, echo=FALSE}
+flights %>%
+  filter(!is.na(arr_delay)) %>%
+  mutate(
+    delayed_arr = ifelse(arr_delay<=0,"no","yes"),
+    delayed_dep = ifelse(dep_delay<=0,"no","yes")
+  ) %>%
+  group_by(delayed_dep) %>%
+  summarize(
+    on_time_arr_pct = sum(delayed_arr == "no") / n()
+  ) %>%
+  ggplot(mapping = aes(x=delayed_dep, y=on_time_arr_pct))+
+    geom_col() +
+    xlab("Was the departure delayed?") +
+    ylab("Percentage of Flights Arriving Early or On Time") +
+    ggtitle("Early or On-Time Arrival Percentage by Departure Timing") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+## Question #3, Part C
+
+Flights that have departure delays of 8 minutes have about a 50-50 chance of arriving to their destination on time. A shorter delay means a better chance of arriving early, and a longer delay means a worse chance of arriving early.
+
+```{r zoomed_on_time, echo=FALSE}
+flights %>%
+  filter(!is.na(arr_delay)) %>%
+  mutate(
+    on_time_arr = ifelse(arr_delay<=0,1,0),
+    on_time_dep = ifelse(dep_delay<=0,1,0)
+  ) %>%
+  group_by(dep_delay) %>%
+  summarize(
+    on_time_pct = mean(on_time_arr)
+  ) %>%
+  ggplot(mapping = aes(x=dep_delay,y=on_time_pct))+
+    geom_point() +
+    coord_cartesian(
+      ylim=c(0.40,0.60),
+      xlim=c(0,25)
+    ) +
+    xlab("Departure Delay (mins)") +
+    ylab("Percentage of Flights Arriving Early or On Time") +
+    ggtitle("Departure Delay vs. On-Time Percentage (Zoomed In!)") +
+    theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+
+
+## Appendix: All code used to make this document 
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```
+
+
+

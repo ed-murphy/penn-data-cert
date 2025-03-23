@@ -1,0 +1,447 @@
+---
+title: "Final Project"
+author: "Ed Murphy"
+date: "2025-03-13"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+  word_document: default
+---
+
+  
+
+```{r setup, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(tidyverse)
+library(ggplot2)
+library(haven)
+library(here)
+
+# setting working directory for knitting
+knitr::opts_knit$set(root.dir = here())
+```
+
+  
+
+## Load the data
+
+```{r load}
+# load the data
+cps2024 <- read_dta(here("data", "cps2024.dta"))
+```
+
+  
+## Clean the data
+
+Notice that in this cleaning step, I am not applying the weights. While weights are usually necessary when working with `CPS ASEC` data, I am not using them in this assignment. That is because I spoke with Professor Idrobo and we decided that it would be best to focus on the concepts learned in this class rather than try to extend the concepts to use survey weights via the `survey` package.  
+
+As a result, the results produced in this assignment will not reflect real-world values. For example, unweighted mean `hhincome` is quite a bit higher than real-world tabulations of weighted mean `hhincome`.
+
+```{r clean}
+# the raw data contains multiple rows per household
+# limiting the data to one row per household (the household head)
+# so that I can use the household variables without duplicates
+cps2024 <- cps2024 %>%
+  filter(relate==101) %>%
+  mutate(
+    total_ctc = ctccrd + actccrd
+  )
+```
+  
+
+## Problem 1a
+
+For problem `1a`, my variable of interest is `hhincome`.
+
+
+```{r 1a}
+# Problem 1a
+summary(cps2024$hhincome, na.rm = TRUE)
+sd(cps2024$hhincome, na.rm = TRUE)
+```
+  
+
+## Problem 1b
+
+```{r 1b}
+# Problem 1b
+cps2024 %>%
+  ggplot(aes(x = hhincome)) +
+  geom_histogram(bins = 30, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(xintercept = mean(hhincome, na.rm = TRUE),
+                 color = "Mean"), linetype = "dashed", linewidth = 1) +
+  geom_vline(aes(xintercept = median(hhincome, na.rm = TRUE), color = "Median"),
+             linetype = "dashed", linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c('Mean' = 'red', 'Median' = 'green')) +
+  labs(title = 'Household Income of the 2024 CPS ASEC Sample',
+       x = 'Household Income',
+       y = 'Count') +
+  theme_minimal()
+```
+  
+  
+## Problem 1c
+
+The variable `hhincome` is not normally distributed. First, visually, the histogram is not symmetric. There are many observations in the 2 bins to the left of the mean, and then to the right of the mean there is a much longer tail. Second, the mean is much larger than the median, which again suggests that the distribution is skewed to the right. Third, the standard deviation is larger than the mean, which points to high variability in the data, which confirms our long right tail. None of these are properties of a normal distribution.
+
+  
+
+## Problem 1d
+
+
+
+```{r 1d}
+# Problem 1d
+mean_hhincome<- mean(cps2024$hhincome, na.rm = TRUE)
+sd_hhincome<- sd(cps2024$hhincome, na.rm= TRUE)
+
+cps2024$zscore_hhincome <- (cps2024$hhincome - mean_hhincome) / sd_hhincome
+
+zscore <- c(-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0)
+
+mass_table <- data.frame(
+  zscore = zscore,
+  Mass_below_Zi = rep(NA_real_, length(zscore))
+)
+
+for (z in zscore) {
+  
+  mass_below <- sum(cps2024$zscore_hhincome < z) / length(cps2024$zscore_hhincome)
+  
+  mass_table[mass_table$zscore == z, 'Mass_below_Zi'] <- mass_below
+
+}
+
+mass_table
+```
+
+  
+## Problem 1e
+```{r 1e}
+# Problem 1e
+mass_table2 <- data.frame(
+  zscore = zscore,
+  Mass_below_Zi = rep(NA_real_, length(zscore))
+)
+
+for (z in zscore) {
+  
+  mass_below <- pnorm(z)
+  
+  mass_table2[mass_table2$zscore == z, 'Mass_below_Zi'] <- mass_below
+
+}
+
+mass_table2
+```
+
+The table that I get in `1e` assumes that the data are distributed normally. The table that I get in `1d` calculates mass without making any assumptions about the data's distribution. The fact that they are different shows that the data for `hhincome` are not normally distributed.
+
+  
+
+## Problem 2a
+
+For problem `2a`, my variable of interest is `age`. This means age of the household head.
+
+
+```{r 2a}
+# Problem 2a
+summary(cps2024$age, na.rm = TRUE)
+sd(cps2024$age, na.rm = TRUE)
+```
+  
+
+## Problem 2b
+
+```{r 2b}
+# Problem 2b
+cps2024 %>%
+  ggplot(aes(x = age)) +
+  geom_histogram(bins = 30, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(xintercept = mean(age, na.rm = TRUE), color = "Mean"),
+             linetype = "dashed", linewidth = 1) +
+  geom_vline(aes(xintercept = median(age, na.rm = TRUE), color = "Median"),
+             linetype = "dashed", linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c('Mean' = 'red', 'Median' = 'green')) +
+  labs(title = 'Age of Household Heads in the 2024 CPS ASEC Sample',
+       x = 'Age of Household Head',
+       y = 'Count') +
+  theme_minimal()
+```
+
+  
+## Problem 2c
+
+The variable `age` is not normally distributed. While there isn't much skew (the mean and median are pretty close to each other), the histogram still is not symmetric because it shows a right tail that is affected by top coding at age 85. Second, the data appear closer to uniformly distributed over much of the range. There are categories with relatively few cases at the lower end of the distribution, but after that, the histogram is fairly flat.
+
+  
+
+## Problem 2d
+
+
+
+```{r 2d}
+# Problem 2d
+mean_age <- mean(cps2024$age, na.rm = TRUE)
+sd_age <- sd(cps2024$age, na.rm= TRUE)
+
+cps2024$zscore_age <- (cps2024$age - mean_age) / sd_age
+
+zscore <- c(-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0)
+
+mass_table3 <- data.frame(
+  zscore = zscore,
+  Mass_below_Zi = rep(NA_real_, length(zscore))
+)
+
+for (z in zscore) {
+  
+  mass_below <- sum(cps2024$zscore_age < z) / length(cps2024$zscore_age)
+  
+  mass_table3[mass_table3$zscore == z, 'Mass_below_Zi'] <- mass_below
+
+}
+
+mass_table3
+```
+
+  
+## Problem 2e
+```{r 2e}
+# Problem 2e
+mass_table4 <- data.frame(
+  zscore = zscore,
+  Mass_below_Zi = rep(NA_real_, length(zscore))
+)
+
+for (z in zscore) {
+  
+  mass_below <- pnorm(z)
+  
+  mass_table4[mass_table4$zscore == z, 'Mass_below_Zi'] <- mass_below
+
+}
+
+mass_table4
+```
+
+The table that I get in `2e` assumes that the data are distributed normally. The table that I get in `2d` calculates mass without making any assumptions about the data's distribution. The fact that they are different shows that the data for `age` are not normally distributed.
+
+  
+## Problem 3a
+
+My variable of interest is `hhincome`.  
+  
+
+My null hypothesis is: The population mean for household income is $100,000.  
+  
+
+My alternative hypothesis is: The population mean for household income is not $100,000.
+
+  
+## Problem 3b
+
+```{r 3b}
+t <- (mean_hhincome - 100000) / (sd_hhincome / sqrt(nrow(cps2024)))
+t
+t_abs <- abs(t)
+t_abs
+```
+
+The test statistic is `r t`. I calculated `t` by taking the difference between my sample mean and my null hypothesis, and dividing that difference by the sample standard deviation divided by the square root of the sample size.
+
+
+## Problem 3c
+
+```{r 3c}
+t95 <- qt(0.975, nrow(cps2024) - 1)
+t95
+```
+
+Given that the absolute value of my test statistic was `r t_abs`, and the critical value from the t-distribution at `alpha = 0.05` is `r t95`, I reject the null hypothesis that the population mean for `hhincome` is $100,000.
+
+  
+
+## Problem 3d
+
+```{r 3d}
+p_value <- 2 * pt(-abs(t), nrow(cps2024) - 1)
+p_value
+```
+
+The p-value associated with the test statistic from part `3b` is `r p_value`. It means that if the population mean were actually equal to the null hypothesis of $100,000, we would have essentially 0 chance of getting a sample mean, and thus a test statistic, as extreme as the ones we have.
+
+  
+
+## Problem 3e
+
+```{r 3e}
+t_test_results <- t.test(cps2024$hhincome,
+                         alternative = "two.sided",
+                         mu = 100000,
+                         conf.level = 0.95)
+
+t_test_results
+```
+
+Just like in parts `3a`-`3d`, the t-test above done this time via `t.test()` confirms that we can confidently reject the null hypothesis that the population mean of household income is 100,000. The test statistic is `r t_test_results$statistic` and its p-value is `r t_test_results$p.value`.
+
+## Problem 3f
+
+I learned that the variable in question, `hhincome`, does not have a population mean of 100,000. I also know from `t.test()` that the 95% confidence interval of `hhincome` is `r t_test_results$conf.int`, so I know that the population mean of `hhincome` is likely quite a bit higher than my null hypothesis of 100,000.
+
+  
+## Problem 4a
+
+The null hypothesis is that there is no difference between the household incomes of households that were covered by Medicaid last year and those that weren't covered by Medicaid last year. The alternative is that the household incomes of those two groups are different. The variable that measures household income is `hhincome` and the variable that measures Medicaid coverage last year is `himcaidly`.
+
+## Problem 4b
+
+```{r 4b}
+table(cps2024$himcaidly)
+
+medicaid_hhincome <- mean(cps2024$hhincome[cps2024$himcaidly==2])
+nonmedicaid_hhincome <- mean(cps2024$hhincome[cps2024$himcaidly==1])
+
+medicaid_sd_squared <- sd(cps2024$hhincome[cps2024$himcaidly==2]) ^ 2
+nonmedicaid_sd_squared <- sd(cps2024$hhincome[cps2024$himcaidly==1]) ^ 2
+
+t_medicaid = (medicaid_hhincome - nonmedicaid_hhincome) /
+    (sqrt((medicaid_sd_squared/sum(cps2024$himcaidly==2)) +
+            (nonmedicaid_sd_squared/sum(cps2024$himcaidly==1))))
+```
+
+The test statistic is `r t_medicaid`. 
+
+  
+## Problem 4c
+
+```{r 4c}
+# first I need to calculate the degrees of freedom
+df <- ((medicaid_sd_squared / sum(cps2024$himcaidly==2)) + 
+         (nonmedicaid_sd_squared / sum(cps2024$himcaidly==1)))^2 / 
+  ( ((medicaid_sd_squared / sum(cps2024$himcaidly==2))^2 / (sum(cps2024$himcaidly==2) - 1)) + 
+      ((nonmedicaid_sd_squared / sum(cps2024$himcaidly==1))^2 / (sum(cps2024$himcaidly==1) - 1)) )
+
+# then use the df to calculate the critical value at 95% confidence level
+t95_medicaid <- qt(0.975, df)
+t95_medicaid
+```
+
+First, I calculated the degrees of freedom. Then, I used the degrees of freedom and the `qt()` function to identify the critical value for my test at the 95% confidence level. It is `r t95_medicaid`. Since the absolute value of my test statistic, `r t_medicaid`, is greater than the critical value, I reject the null hypothesis that the `hhincome` for the two groups is the same.
+
+## Problem 4d
+
+```{r 4d}
+pval_t_medicaid <- 2*pt(t_medicaid, df)
+pval_t_medicaid
+```
+
+The p-value of the test statistic from problem `4b` is zero. This makes sense given how much larger our test statistic is than our critical value. If the null hypothesis was actually true, we would not find a more extreme test statistic than the one we found.
+  
+
+
+## Problem 4e
+
+```{r 4e}
+t_test_medicaid <- t.test(cps2024$hhincome[cps2024$himcaidly==2], 
+                          cps2024$hhincome[cps2024$himcaidly==1])
+t_test_medicaid
+```
+
+The results from the `t.test()` function are the same as the results from problems `4a` through `4d`. The test statistic is `-72.974` in both and its p-value is essentially `0` in both.
+  
+
+
+## Problem 4f
+
+The lesson from this hypothesis test is that we can reject the null hypothesis that the mean household incomes for Medicaid and non-Medicaid households are the same. In other words, at the 95% confidence level, we can say based on our data that the mean household income is different for those two groups. Further, since the test statistic is negative, we know the direction of the difference as well. That is, the average income for Medicaid households is lower than the average income for non-Medicaid households. This makes sense intuitively. The Medicaid program is designed to provide health insurance coverage to those with low incomes.
+
+  
+
+## Problem 5a
+
+My two continuous variables are `hhincome` and `age`. I did histograms and summary statistics for both of those in problems `1` and `2`, respectively.
+  
+  
+## Problem 5b
+
+```{r 5b}
+ggplot(cps2024, aes(x = age, y = hhincome)) +
+  geom_point() +
+  labs(title = "Scatter Plot of Household Income and Age",
+       x = "Age of Household Head",
+       y = "Household Income") +
+  theme_minimal()
+```
+The scatter plot shows that there are many instances of lower incomes at all ages. However, higher incomes do seem to become more frequent at higher ages. In addition, there is a visible trend where the dense region of household incomes rises into middle age (around 50) and then starts to tail off again. All of that said, it seems as thought it would be fair to describe the relationship with a line. A line could capture some of the broad effect that age seems to be having on household income.
+
+  
+## Problem 5c
+
+```{r 5c}
+ggplot(cps2024, aes(x = age, y = hhincome)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'red') +
+  labs(title = "Scatter Plot of Household Income and Age",
+       x = "Age of Household Head",
+       y = "Household Income") +
+  theme_minimal()
+```
+
+After adding the linear fit, we can see that maybe there isn't a strong linear relationship between age and household income. The line has a bit of a negative slope.
+
+  
+  
+## Problem 5d
+
+```{r 5d}
+inc_age_model <- lm(hhincome ~ age, data = cps2024)
+summary(inc_age_model)
+```
+
+Beta-1-hat, the coefficient for age in the linear model, is `r inc_age_model$coefficients['age']`. This means that, all else constant, on average, household income decreases by `r abs(inc_age_model$coefficients['age'])` dollars. 
+
+  
+## Problem 5e
+
+The intercept in the linear model is `r inc_age_model$coefficients['(Intercept)']`. Substantively, on a technical level, this would mean that a household with a head aged 0 would, on average, have a household income of `r inc_age_model$coefficients['(Intercept)']` dollars. However, there is not a household with a head aged 0 in the data, and a household head with age of 0 doesn't make sense logically. So the intercept is really just an artifact of our model.
+
+  
+## Problem 5f
+
+The p-value and test statistic that are reported by R for each of the model's coefficients come from a t-test that is evaluating whether each coefficient is statistically different from 0. In other words, to use the `age` coefficient above as an example, the null hypothesis of the underlying t-test would be `the age coefficient is 0`, i.e. that age has no effect on household income. The resulting t-test rejects that null hypothesis.
+
+  
+## Problem 5g
+
+The p-value for the age coefficient is essentially 0, which means that the relationship between age and household income is statistically significant. However, clearly, age is not a strong predictor of household income. In addition, we are almost certainly leaving important variables in the error term.
+
+  
+## Problem 5h
+
+```{r 5h}
+inc_age_ctc_model <- lm(hhincome ~ age + total_ctc, data = cps2024)
+summary(inc_age_ctc_model)
+
+```
+
+The linear model gives a coefficient for each of the two independent variables.  
+  
+For `age`, we have a coefficient of `r inc_age_ctc_model$coefficients['age']`, meaning that, on average, household income decreases by `r abs(inc_age_ctc_model$coefficients['age'])` dollars for each additional year of age of the household head, holding `total_ctc` constant. The p-value for this coefficient tells us that it is statistically different from 0.
+  
+For `total_ctc`, we have a coefficient of `r inc_age_ctc_model$coefficients['total_ctc']`, meaning that, on average, household income is `r inc_age_ctc_model$coefficients['total_ctc']` higher for each additional dollar of CTC received by the household, holding `age` constant. The p-value for this coefficient tells us that it is statistically different from 0.
+  
+Overall, this is obviously a pretty silly model. We're definitely leaving important variables in the error term, like education and occupation. Not to mention the fact that child tax credit amount and household income are directly related to one another in the federal tax code. We know that CTC gets higher as income gets higher, up to a point. However, for the purpose of the exercise above, these variables were interesting to take a look at.
+  
+
+  
+
+
+
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

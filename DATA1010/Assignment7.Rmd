@@ -1,0 +1,360 @@
+---
+title: "HW7"
+author: "Ed Murphy"
+date: "2024-03-09"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r setup, include=FALSE}
+# loading packages
+library(tidyverse)
+library(readr)
+library(maps)
+library(mapdata)
+library(usmap)
+library(lubridate)
+library(ggplot2)
+library(here)
+
+# setting the correct working directory
+knitr::opts_knit$set(root.dir = here())
+
+# setting tibble width option
+options(tibble.width = Inf)
+```
+
+## Question #1
+
+<br>
+
+```{r load_data, echo=FALSE, message=FALSE}
+
+## Question #1
+
+# load Trump approval
+trump_approval <- read_csv(here("data", "https://projects.fivethirtyeight.com/trump-approval-data/approval_topline.csv"))
+
+# filter data to "All Polls"
+trump_approval_all <- trump_approval %>%
+  filter(subgroup == "All polls")
+
+# turn modeldate into an actual date (rather than chr)
+trump_approval_all_date <- trump_approval_all %>%
+  mutate(
+    date = mdy(modeldate)
+  )
+
+```
+
+<br>
+
+The plot below shows us that Donald Trump had greater disapproval than approval for almost all of his presidency.
+
+```{r approval_disapproval, echo=FALSE}
+
+# Question #1
+
+# plot Trump's approval and disapproval
+ggplot() +
+  geom_line(data = trump_approval_all_date, aes(x = date, y = approve_estimate, color = "Approval")) +
+  geom_line(data = trump_approval_all_date, aes(x = date, y = disapprove_estimate, color = "Disapproval")) +
+  labs(
+    x = "Date",
+    y = "Average Rating",
+    title = "Sentiment About Trump During His Presidency"
+  ) +
+  theme(
+    plot.title = element_text(hjust=0.5)
+  ) +
+  scale_color_manual(
+    values = c(Approval = "darkgreen", Disapproval = "red"),
+    labels = c(Approval = "Approval", Disapproval = "Disapproval"),
+    name = "Rating"
+  )
+
+```
+
+<br>
+
+However, the plot above shows one interesting potential period. Trump's approval rating was declining rapidly and steadily in early 2021, which was the final days of his term. But then at the very end, approval saw a sharp uptick. Let's zoom in on that period below.
+
+<br>
+
+```{r approval_zoomed, echo=FALSE}
+
+#Question #1
+
+# create smaller data frame that is zoomed in on period
+trump_zoom <- trump_approval_all_date %>%
+  filter(date > ymd("2020-12-01"))
+
+# reproduce plot above but with smaller zoomed data frame
+ggplot() +
+  geom_line(data = trump_zoom, aes(x = date, y = approve_estimate, color = "Approval")) +
+  geom_line(data = trump_zoom, aes(x = date, y = disapprove_estimate, color = "Disapproval")) +
+  labs(
+    x = "Date",
+    y = "Average Rating",
+    title = "Sentiment About Trump During His Presidency"
+  ) +
+  theme(
+    plot.title = element_text(hjust=0.5)
+  ) +
+  scale_color_manual(
+    values = c(Approval = "darkgreen", Disapproval = "red"),
+    labels = c(Approval = "Approval", Disapproval = "Disapproval"),
+    name = "Rating"
+  ) +
+  scale_x_date(
+    date_breaks = "10 days", 
+    date_labels = "%m/%d/%Y"
+  ) +
+  geom_vline(xintercept = ymd("2021-01-06"), linetype = "dashed", color = "blue")
+```
+<br>
+
+In the zoomed version of Trump's approval above, we can see that for much of his lame duck period after the 2020 election, his approval rating chugged along at a relatively constant rate. However, beginning on January 6th, 2021 (blue dashed line), his approval rating dropped to a lower level. That drop coincides with the events of January 6th, which is when Trump supporters from across the country, riled up by the President's comments about the integrity of the 2020 election, invaded the US Capitol. It appears as though those events were enough to have a significant impact on Trump's average approval ratings that followed.
+
+<br>
+
+## Question #2
+
+<br>
+
+The likelihood of facing a flight delay varies based on the day of the week. On Thursdays, 89% of flights face at least a departure or arrival delay. On Saturdays, only 67% of flights do. The other five days of the week fall somewhere in between.
+
+<br>
+
+```{r flights, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Question #2
+
+# load nycflights
+library(nycflights13)
+
+# load flights into environment
+flights <- flights
+
+flights_weekdays <- flights %>%
+  mutate(
+    weekday = wday(time_hour, label=TRUE)
+  )
+
+flights_weekdays %>%
+  filter(!is.na(dep_delay)) %>%
+  filter(!is.na(arr_delay)) %>%
+  group_by(weekday) %>%
+    summarize(
+    "% of Flights With Dep. or Arr. Delay" = ( ( sum(dep_delay>0) + sum(arr_delay>0) ) / n() ) * 100
+  )
+
+```
+
+<br>
+
+## Question #3
+
+<br>
+
+Question 16.3.4.4 in the textbook asks:
+"How does the average delay time change over the course of a day? Should you use dep_time or sched_dep_time? Why?"
+
+dep_time is the time that a plane ultimately leaves. sched_dep_time is the time that a plane was originally scheduled to depart. If we want to anchor flights to a time of day and then analyze departure patterns, then we should use sched_dep_time.
+
+<br>
+
+Now let's take a look at how average delay time changes over the course of a day, based on sched_dep_time.
+
+<br>
+
+```{r delays_by_time, echo=FALSE}
+
+## Question #3
+
+flights <- flights
+
+# create data frame
+flights_hour <- flights %>%
+  filter(
+    !is.na(dep_delay)
+  ) %>%
+  mutate(
+    sched_dep_hour = sched_dep_time %/% 100,
+    sched_dep_hour_dttm = make_datetime(year, month, day, sched_dep_hour) %>%
+      update(month = 1, day = 1)
+  ) %>%
+  group_by(sched_dep_hour_dttm) %>%
+  summarize(
+    avg_delay = mean(dep_delay)
+  )
+
+# plot
+ggplot(data = flights_hour) +
+  geom_point(aes(x = sched_dep_hour_dttm, y = avg_delay)) +
+  labs(
+    x = "Scheduled Hour of Departure",
+    y = "Average Departure Delay (mins)",
+    title = "Average Departure Delay by Scheduled Time of Departure, 2013 NYC"
+  ) +
+  theme(
+    plot.title = element_text(hjust=0.5)
+  ) +
+  scale_x_datetime(
+    date_breaks = "2 hours",
+    date_labels = "%H:%M"
+  )
+```
+<br>
+
+We can see that on average, delay time starts very low and increases throughout the day until around 7pm before it levels off and then declines for flights that are scheduled to depart at 10pm and 11pm.
+
+<br>
+
+## Question #4
+
+<br>
+
+Your flight is most likely to be canceled if its scheduled departure time is around 7pm. Cancelation rates rise gradually throughout the day from 5am to 7pm, before dropping back down after 7pm. This makes sense. Bad weather could create a cumulative wave of cancelations throughout the day, where later flights are not only being canceled if weather is bad at their departure time but also if weather was bad at earlier departure times. However, eventually fewer flights are scheduled to take off, so the backlog clears and flights don't have to be canceled as much. And then there are almost never flights scheduled to take off overnight, so the pattern can reset before the next morning.
+
+<br>
+
+
+```{r canceled flight, echo=FALSE, message=FALSE, warning=FALSE}
+
+## Question #4
+
+# create usable time data for flights
+flights_time <- flights %>%
+  mutate(
+    sched_dep_hour = sched_dep_time %/% 100,
+    sched_dep_min = sched_dep_time %% 100,
+    sched_dep_time_dttm = make_datetime(year, month, day, sched_dep_hour, sched_dep_min) %>%
+      update(month = 1, day = 1) %>%
+      round_date("15 minutes")
+  ) %>%
+  filter(
+    sched_dep_time_dttm != ymd_hms("2013-01-01 01:00:00"),
+    sched_dep_time_dttm < ymd_hms("2013-01-02 00:00:00") 
+  ) %>%
+  group_by(sched_dep_time_dttm) %>%
+  summarize(
+    pct_canceled = mean(is.na(dep_time)) * 100,
+    n_flights = n()
+  ) %>%
+  mutate(
+    time_for_plot = format(sched_dep_time_dttm, format = "%H:%M")
+  ) %>%
+  arrange(time_for_plot)
+
+library(scales)
+
+ggplot(data = flights_time) +
+  geom_point(aes(x = sched_dep_time_dttm, y = pct_canceled)) +
+  geom_smooth(aes(x = sched_dep_time_dttm, y = pct_canceled)) +
+  labs(
+    x = "Scheduled Departure Time",
+    y = "Percentage of Flights Canceled",
+    title = "Percentage of Flights Canceled by Scheduled Departure Time"
+  ) +
+  theme(
+    plot.title = element_text(hjust=0.5)
+  ) + 
+  scale_x_datetime(
+    date_breaks = "3 hours",
+    date_labels = "%H:%M"
+  )
+
+
+```
+<br>
+
+# Question #5
+
+<br>
+
+```{r load_stocks_data, echo=FALSE, warning=FALSE, message=FALSE}
+
+# Question #5
+
+
+install.packages("tidyquant", repos = "http://cran.us.r-project.org")
+
+library(tidyquant)
+
+prices <- tq_get(c('AAPL','MSFT'),
+                 from = "2017-01-01",
+                 to = "2020-04-17",
+                 get = "stock.prices")
+
+```
+
+<br>
+
+Apple (AAPL) and Microsoft (MSFT) both experience a sharp drop in early 2020 that coincided with the onset of the COVID-19 pandemic and the associated economic slowdown and panic. That drop is indicated by the dashed black line that corresponds to 2/22/20. After that point, news about the spread of the COVID-19 pandemic began to be reported. However, both stocks rebounded fairly quickly from their trough as initial panic began to fade, as shown by the solid purple line that corresponds with 3/21/20.
+
+<br>
+
+
+```{r AAPL_MSFT_time, echo=FALSE, warning=FALSE, message=FALSE}
+
+# Question #5
+
+ggplot(data = prices) +
+  geom_line(aes(x = date, y = close, color = symbol)) +
+  labs(
+    x = "Date",
+    y = "Stock Price, closing ($ per share)",
+    title = "AAPL and MSFT Stock Prices Over Time"
+  ) +
+  theme(
+    plot.title = element_text(hjust=0.5)
+  ) +
+  geom_vline(xintercept = ymd("2020-02-22"), linetype = "dashed", color = "black") +
+  geom_vline(xintercept = ymd("2020-03-21"), linetype = "solid", color = "purple")
+
+```
+<br>
+
+The chart below looks at the stock performances of NVIDIA (NVDA) and Silicon Valley Bank (SIVBQ) from February 2020 through present. NVIDIA is a technology company that makes graphics processing units (GPUs) which are a key component of computers that are used for gaming, cryptocurrency mining, and AI development. Starting in March 2020, the world was shut down for months, which increased the demand for gaming. During that time, cryptocurrency mining has become increasingly difficult in terms of computational power. Finally, advances in AI have accelerated in recent years. As a result of those trends, demand for NVIDIA's products has increased dramatically and NVIDIA's stock price has increased as a result.
+
+By contrast, Silicon Valley Bank experienced a solid rebound from the tough COVID market but then sharply dropped and eventually went bankrupt. That is because the Federal Reserve lowered rates as a response to the tough economic period, and Silicon Valley Bank's business practices made it uniquely susceptible to what was a tough interest rate environment for all banks. In March 2023, the stock was off the board completely and the company was bought out by another bank.
+
+<br>
+
+```{r NVDA_time, echo=FALSE, warning=FALSE, message=FALSE}
+
+# Question #5
+
+prices2 <- tq_get(c('NVDA','SIVBQ'),
+                 from = "2017-01-01",
+                 to = "2024-03-08",
+                 get = "stock.prices") %>%
+  filter(date > "2020-01-31")
+
+
+ggplot(data = prices2) +
+  geom_line(aes(x = date, y = close, color = symbol)) +
+  labs(
+    x = "Date",
+    y = "Stock Price, closing ($ per share)",
+    title = "NVDA and SIVBQ Stock Prices Over Time"
+  ) +
+  theme(
+    plot.title = element_text(hjust=0.5)
+  )
+
+```
+
+
+
+
+
+
+
+<br>
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+```

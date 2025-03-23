@@ -1,0 +1,399 @@
+---
+title: "Assignment 1"
+author: "Ed Murphy"
+date: "2025-01-29"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+  word_document: default
+---
+
+<br>
+
+```{r setup, warning=FALSE, message=FALSE}
+
+# Load necessary libraries
+library(tidyverse)
+library(haven)
+library(ggplot2)
+library(here)
+
+# setting working directory for knitting
+knitr::opts_knit$set(root.dir = here())
+
+# make sure that knitted file isn't too wide
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60))
+
+# allow console to show all of wide tibbles
+options(tibble.width = Inf)
+
+```
+ 
+<br>
+
+## Problem 1
+
+```{r 1}
+# Problem 1
+nlsw88 <- read_dta(here("data", "nlsw88.dta"))
+```
+
+<br>
+
+## Problem 2
+
+The mean and median are very close, so we can say that the distribution is symmetric. If we wanted to be very precise, since the mean is slightly higher than the median, we could say that the data might have a very slight skew to the right. 
+
+```{r 2}
+# Problem 2
+mean_age <- mean(nlsw88$age)
+median_age <- median(nlsw88$age)
+
+mean_age
+median_age
+```
+
+<br>
+
+## Problem 2a
+
+The histogram confirms that for this data, the mean and median are both useful when it comes to capturing the age variable's central tendency. They are both near the middle of the distribution as shown by the histogram.
+
+```{r 2a}
+# Problem 2a
+ggplot(nlsw88, aes(x = age)) +
+  geom_histogram(binwidth = 2, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(xintercept = mean_age, color = "Mean"), linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = median_age, color = "Median"), linetype = "dashed", size = 1) +
+  scale_color_manual(name = 'Statistics', values = c('Mean' = 'red', 'Median' = 'green')) +
+  labs(title = 'Age Distribution',
+       x = 'Age',
+       y = 'Count') +
+  theme_minimal()
+```
+
+<br>
+
+## Problem 2b
+
+3 bins isn't particularly useful because so much data is in each bin that we can't really see the distribution of the data. 15 bins gets a little weird because the age variable only has a range of 12 distinct age-years. 8 bins is probably the most useful, as it can show us the distribution with some detail but also without getting more granular than the age data allows.
+
+```{r 2b}
+# Problem 2b
+ggplot(nlsw88, aes(x = age)) +
+  geom_histogram(bins = 3, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(xintercept = mean_age, color = "Mean"), linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = median_age, color = "Median"), linetype = "dashed", size = 1) +
+  scale_color_manual(name = 'Statistics', values = c('Mean' = 'red', 'Median' = 'green')) +
+  labs(title = 'Age Distribution',
+       x = 'Age',
+       y = 'Count') +
+  theme_minimal()
+
+ggplot(nlsw88, aes(x = age)) +
+  geom_histogram(bins = 8, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(xintercept = mean_age, color = "Mean"), linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = median_age, color = "Median"), linetype = "dashed", size = 1) +
+  scale_color_manual(name = 'Statistics', values = c('Mean' = 'red', 'Median' = 'green')) +
+  labs(title = 'Age Distribution',
+       x = 'Age',
+       y = 'Count') +
+  theme_minimal()
+
+ggplot(nlsw88, aes(x = age)) +
+  geom_histogram(bins = 15, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(xintercept = mean_age, color = "Mean"), linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = median_age, color = "Median"), linetype = "dashed", size = 1) +
+  scale_color_manual(name = 'Statistics', values = c('Mean' = 'red', 'Median' = 'green')) +
+  labs(title = 'Age Distribution',
+       x = 'Age',
+       y = 'Count') +
+  theme_minimal()
+```
+
+<br>
+
+## Problem 3
+
+The variance of the `age` variable in our sample is about 9.36. The variance formula tells us why it is a useful measure of dispersion. First, take the difference between each age and the sample mean for age. Then, square each difference. Then add those squared differences together. Finally, because this is a sample variance, divide by the number of observations minus 1. What we're doing through that formula, colloquially, is figuring out how far the average observation's age is from the mean age in the sample. The squaring is essentially to make sure the differences are all positive and don't cancel each other out. So the only downside of variance is that it's in units squared, which can be a bit confusing to interpret.
+
+
+```{r 3}
+# Problem 3
+
+# because we are calculating the sample variance, we can use the built-in R function
+
+var(nlsw88$age)
+
+
+```
+<br>
+
+## Problem 3a
+
+The standard deviation of the `age` variable is about 3.06.
+
+```{r 3a}
+# Problem 3a
+
+# once again, since we are calculating the standard deviation of a sample, we can use the built-in R function
+
+sd(nlsw88$age)
+
+# which is the same thing as this
+
+sqrt(var(nlsw88$age))
+
+```
+<br>
+
+## Problem 3b
+
+
+
+```{r 3b}
+# Problem 3b
+
+t_values <- c(0.5, 1, 1.5, 2.0)
+
+upper_lower <- matrix(NA, 4, 5)
+
+colnames(upper_lower) <- c("t", "Lower", "Upper", "Count", "Percent")
+
+for (i in seq_along(t_values)) {
+  
+  t <- t_values[i]
+  
+  upper <- mean_age + i * sd(nlsw88$age)
+  
+  lower <- mean_age - i * sd(nlsw88$age)
+  
+  count <- sum(nlsw88$age >= lower & nlsw88$age <= upper)
+  
+  percent <- (count / length(nlsw88$age)) * 100
+  
+  upper_lower[i, ] <- c(t, lower, upper, count, percent)
+  
+}
+
+upper_lower
+
+
+```
+
+<br>
+
+## Problem 3c
+
+The results from Problem 3b show us that, the larger of a `t` value we have, the larger range we have around our mean. And, as a result of the larger range around our mean, more of our observations fall within that range. This relationship escalates quickly. At a `t` of 0.5, only 56% of observations fall within the range. By the time `t` reaches 1.5, 100% of observations fall within the range.
+
+<br>
+
+## Problem 4
+
+These numbers alone allow for several interesting conclusions. The mean of 7.77 is greater than the median of 6.27, so we know that there are likely some outliers at the higher end of the distribution that are pulling up the mean. The standard deviation divided by the mean is 0.74, and that coefficient of variation tells us that wages are pretty variable relative to the mean. In other words, we don't expect all of the wages to be tightly clustered around 7.77.
+
+```{r 4}
+## Problem 4
+min(nlsw88$wage)
+max(nlsw88$wage)
+mean(nlsw88$wage)
+median(nlsw88$wage)
+var(nlsw88$wage)
+sd(nlsw88$wage)
+```
+
+<br>
+
+## Problem 4a
+
+The histogram partially corroborates my insights from above. The mean being to the right of the median does in fact result from a few outliers at the high end of the distribution. However, my other statement about the distribution doesn't appear to be quite right. In reality, the wages are pretty closely clustered near the mean. The standard deviation and variance seem to have been influenced by the outliers more than I had considered.
+
+```{r 4a}
+## Problem 4a
+
+mean_wage <- mean(nlsw88$wage)
+median_wage <- median(nlsw88$wage)
+
+ggplot(nlsw88, aes(x = wage)) +
+  geom_histogram(bins = 20, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(xintercept = mean_wage, color = "Mean"), linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = median_wage, color = "Median"), linetype = "dashed", size = 1) +
+  scale_color_manual(name = 'Statistics', values = c('Mean' = 'red', 'Median' = 'green')) +
+  labs(title = 'Wage Distribution',
+       x = 'Wage',
+       y = 'Count') +
+  theme_minimal()
+```
+
+<br>
+
+## Problem 4b
+
+20.5% of women in the sample are part of a union.
+
+```{r 4b}
+## Problem 4b
+
+union_members <- nlsw88 %>%
+  filter(union == 1) %>%
+  nrow()
+
+union_pct <- union_members / length(nlsw88$wage)
+
+union_pct
+
+```
+
+<br>
+
+## Problem 4c
+
+The mean wage for union members is 8.67 per hour. The mean wage for non-union members is 7.53 per hour. While not the most robust statistical test, our friend is technically correct that, on average, being in a union produces a higher hourly wage.
+
+```{r 4c}
+
+nlsw88 %>%
+  mutate(union = ifelse(is.na(union), 0, union)) %>%
+  group_by(union) %>%
+  summarise(mean_wage = mean(wage, na.rm = TRUE))
+
+```
+
+<br>
+
+## Problem 4d
+
+Seeing the two distributions together provides some better insight. The distributions have a generally similar shape, but the non-union members group has so many more people at lower wages. For example, in the 4-6 dollars per hour range, non-union workers have more than three times the number of people as union members. In addition, there are almost no union members in the bottom bin, making 2 dollars or less per hour. But there are over 100 non-union members at that wage. As we get out toward 20 dollars per hour and beyond, both groups have very few people making that much. Putting this all together, it makes sense that the union members would have slightly higher hourly wages, on average. They have much fewer people at the bottom of the distribution, and only marginally fewer people at the 10-20 dollars per hour range.
+
+```{r 4d}
+
+ggplot(nlsw88, aes(x = wage, fill = factor(union))) +
+  geom_histogram(data = subset(nlsw88, union == 1),
+                 bins = 20,
+                 color = 'black',
+                 alpha = 1) + 
+  geom_histogram(data = subset(nlsw88, union == 0),
+                 bins = 20,
+                 color = 'black',
+                 alpha = 0.2) + 
+  scale_fill_manual(name = 'Union Membership',
+                    values = c('1' = 'steelblue', '0' = 'orange'),
+                    labels = c('1' = 'Union Member', '0' = 'Non-Union Member')) +
+  labs(title = 'Wage Distribution by Union Membership',
+       x = 'Wage',
+       y = 'Count') +
+  theme_minimal()
+
+```
+
+<br>
+
+## Problem 5a
+
+```{r 5a}
+
+nlsw88 <- nlsw88 %>%
+  mutate(exp_cat = case_when(
+    ttl_exp <= 10 ~ 1,
+    ttl_exp > 10 & ttl_exp <= 20 ~ 2,
+    ttl_exp > 20 ~ 3
+  ))
+
+```
+
+<br>
+
+## Problem 5b
+
+In each group, the mean is considerably higher than the median. That tells us that at each level of work experience, there is an element of high-earning outliers bringing up the mean. We can also see that as work experience increases, so does the hourly wage -- on average.
+
+```{r 5b}
+
+exp_cat_groups <- c(1, 2, 3)
+
+mean_median_table <- data.frame(
+  exp_cat_group = exp_cat_groups,
+  mean = rep(NA_real_, length(exp_cat_groups)),
+  median = rep(NA_real_, length(exp_cat_groups))
+)
+
+for (i in exp_cat_groups) {
+  
+  mean_i <- nlsw88 %>%
+    filter(
+      exp_cat == i
+    ) %>%
+    summarise(
+      mean_i = mean(wage)
+    ) %>%
+    pull(mean_i)
+  
+  median_i <- nlsw88 %>%
+    filter(
+      exp_cat == i
+    ) %>%
+    summarise(
+      median_i = median(wage)
+    ) %>%
+    pull(median_i)
+  
+  mean_median_table[mean_median_table$exp_cat_group == i, c('mean', 'median')] <- c(mean_i, median_i)
+  
+}
+
+mean_median_table
+
+```
+
+<br>
+
+## Problem 5c
+
+
+
+```{r 5c}
+
+ggplot(nlsw88, aes(x = wage, fill = factor(exp_cat))) +
+  geom_histogram(data = subset(nlsw88, exp_cat == 1),
+                 bins = 20,
+                 color = 'black',
+                 alpha = 0.7) + 
+  geom_histogram(data = subset(nlsw88, exp_cat == 2),
+                 bins = 20,
+                 color = 'black',
+                 alpha = 0.2) +
+  geom_histogram(data = subset(nlsw88, exp_cat == 3),
+                 bins = 20,
+                 color = 'black',
+                 alpha = 0.8) +
+  geom_vline(aes(xintercept = mean(wage)),
+                 data = subset(nlsw88, exp_cat == 1),
+                 color = 'blue', size = 1, alpha = 1) +
+  geom_vline(aes(xintercept = mean(wage)),
+                 data = subset(nlsw88, exp_cat == 2),
+                 color = 'lightgreen', size = 1, alpha = 1) +
+  geom_vline(aes(xintercept = mean(wage)),
+                 data = subset(nlsw88, exp_cat == 3),
+                 color = 'darkred', size = 1, alpha = 1) +
+  scale_fill_manual(name = 'Work Experience',
+                    values = c('1' = 'blue', '2' = 'lightgreen', '3' = 'darkred'),
+                    labels = c('1' = '10 years or less', '2' = '>10, <=20', '3' = 'more than 20')) +
+  labs(title = 'Wage Distribution by Amount of Work Experience',
+       x = 'Wage',
+       y = 'Count') +
+  theme_minimal()
+
+```
+<br>
+
+## Problem 5d
+
+With work experience of 10 years or less, hourly wages are heavily clustered at around 4-6 dollars per hour. With work experience between 10 and 20 years, the histogram shows that hourly wages in the 8-12 range become much more prominent. Finally, work experience above 20 years is relatively rare in our data. That distribution is much more flat, and doesn't appear to have wages that are higher than the less experienced groups. Overall, based on the histogram, it looks like crossing 10 years of experience is good for hourly wages, but crossing over the 20 year mark doesn't much matter.
+
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

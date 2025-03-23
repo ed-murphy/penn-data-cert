@@ -1,0 +1,348 @@
+---
+title: "Midterm"
+author: "Ed Murphy"
+date: "2024-12-02"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+  word_document: default
+---
+
+<br>
+
+```{r setup, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(tidyverse)
+library(formatR)
+library(readxl)
+library(countrycode)
+library(haven)
+library(here)
+
+# setting working directory for knitting
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60))
+knitr::opts_knit$set(root.dir = here())
+
+# Set options for tibble output and CRAN mirror
+options(tibble.width = Inf)
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+```
+ 
+<br>
+
+# Part 1, Question A, subquestion i
+
+First, the question is loaded - "...you must be highly satisfied...".  
+
+Second, the answer choices are not balanced. There is only one negative choice ("disatisfied", which is also misspelled) and three positive choices. Where is the "highly dissatisfied" choice, for example?  
+
+Third, the question probably gives too much background information. As Professor Lapinski explained in the lecture, some short clause/sentence is good. Two full sentences about the library's lofty mission is probably overkill in a context where we're asking about satisfaction with logistical services.  
+
+Fourth, the answer choices would probably benefit from an explicit neutral category. What does "somewhat satisfied" mean? Is that positive or negative?  
+
+Fifth, what if I didn't receive any services? There needs to be an option for that.
+
+# Part 1, Question A, subquestion ii
+
+My rewrite of the question would be...
+
+How satisfied are you with the services provided by the Free Library of Philadelphia?  
+
+-Highly satisfied  
+-Satisfied  
+-Neutral  
+-Dissatisfied  
+-Highly dissatisfied  
+-Didn't receive any services  
+
+The rewrite removes the loaded phrasing of the question. It balances the answer choices. It removes the long background that pushes the respondent toward a favorable view of the library. It adds a neutral category for people who really just used the basic things a library would provide (checked out a book) and are nowhere near satisfied or dissatisfied, and probably just don't care. Finally, respondents with no library usage can now indicate that status.
+
+# Part 1, Question B
+
+The correct answer would be 'v. Other'.  
+
+While 1/5 of the sample are student athletes, we have no idea if 1/5 of all SAS undergrads are student athletes. It would also be incorrect to say that 20% of all college students are student athletes, as our 500 person sample of Penn SAS undergrads has no connection to the population of all college students. We also can't say that the survey has an overrepresentation of student athletes because we don't know the share of student athletes in the full population of interest. For all we know, 20% could be just right.  
+
+That leaves us with 'v. Other'. All we can say is that "in our survey, 20% of respondents identified as student athletes".
+
+# Part 2, Question a
+
+```{r 2a, results = 'hide'}
+# Part 2, Question a
+tourist_expenditures <- read.csv(here("data", "average-expenditures-of-tourists-abroad.csv"))
+```
+
+<br>
+
+# Part 2, Question b
+
+```{r 2b, results = 'hide'}
+# Part 2, Question b
+tourist_expenditures_2018 <- tourist_expenditures[tourist_expenditures$Year == 2018, ]
+dim(tourist_expenditures_2018)
+```
+The 2018-only tourist expenditures data has 51 rows.
+
+
+<br>
+
+# Part 2, Question c
+
+```{r 2c, results = 'hide'}
+# Part 2, Question c
+tourist_destinations <- read.csv(here("data", "materials/AssignmentData/destination.csv"))
+```
+<br>
+
+# Part 2, Question d
+
+```{r 2d, results = 'hide'}
+# Part 2, Question d
+tourist_destinations_long <- pivot_longer(
+  tourist_destinations,
+  3:5,
+  names_to = 'Year',
+  values_to = 'value'
+)
+
+tourist_destinations_long$Year <- recode(tourist_destinations_long$Year,
+                                         'perc_2016' = 2016,
+                                         'perc_2017' = 2017,
+                                         'perc_2018' = 2018
+)
+```
+<br>
+
+# Part 2, Question e
+
+```{r 2e, results = 'hide'}
+
+# Part 2, Question e
+dest_2018 <- tourist_destinations_long[tourist_destinations_long$Year == 2018, ]
+```
+
+In 2018, 15.46% of trips were to the Americas.
+
+<br>
+
+# Part 2, Question f
+
+```{r 2f, results = 'hide'}
+
+# Part 2, Question f
+
+exp_2018 <- tourist_expenditures_2018
+
+# I opted for the elbow grease approach. It was a nice geography refresher.
+americas <- c('Argentina', 'Brazil', 'Canada', 'Chile', 'Colombia', 'Costa Rica',
+              'Mexico', 'United States')
+africa <- c('Democratic Republic of Congo', 'South Africa')
+asia_and_pacific <- c('Australia', 'India', 'Indonesia', 'Japan', 'New Zealand',
+                      'South Korea')
+europe <- c('Austria', 'Belgium', 'Bulgaria', 'Croatia', 'Cyprus', 'Czechia',
+            'Denmark', 'Estonia', 'Finland', 'France', 'Germany', 'Greece',
+            'Hungary', 'Iceland', 'Ireland', 'Italy', 'Latvia', 'Lithuania',
+            'Luxembourg', 'Malta', 'Netherlands', 'Norway', 'Poland', 'Portugal',
+            'Romania', 'Russia', 'Slovakia', 'Slovenia', 'Spain', 'Sweden',
+            'Switzerland', 'United Kingdom')
+middle_east <- c('Israel', 'Saudi Arabia', 'Turkey')
+
+exp_2018$region <- NA
+exp_2018$region[exp_2018$Entity %in% americas] <- 'Americas'
+exp_2018$region[exp_2018$Entity %in% africa] <- 'Africa'
+exp_2018$region[exp_2018$Entity %in% asia_and_pacific] <- 'Asia & Pacific'
+exp_2018$region[exp_2018$Entity %in% europe] <- 'Europe'
+exp_2018$region[exp_2018$Entity %in% middle_east] <- 'Middle East'
+
+dest_2018$region <- dest_2018$Entity
+dest_2018$Entity <- NULL
+
+tourism <- merge(
+  x = exp_2018,
+  y = dest_2018,
+  by = 'region',
+  all.x = T,
+  all.y = T
+) %>%
+  select(
+    country = Entity,
+    country.real.outbound.exp = Outbound.Tourism.Expenditure..adjusted.for.US.2021.inflation.,
+    region,
+    region.pct.2018.trips = value
+  )
+
+dim(tourism)
+
+```
+I merged using the concept of region.That meant creating a region variable in the expenditures data, and renaming "Entity" to "region" in the destination data.  
+
+The merged data has 51 rows and 4 columns.  
+
+There were no observations lost during the merge - every country was placed into a region, and therefore every row from expenditures data had region information joined onto it.
+
+<br>
+
+# Part 2, question g
+
+```{r 2g, warning = FALSE, message = FALSE}
+
+# Part 2, Question g
+avg_expense_region <- aggregate(country.real.outbound.exp ~ region,
+                                mean,
+                                data = tourism)
+
+avg_expense_region[which.max(avg_expense_region$country.real.outbound.exp), c("region", "country.real.outbound.exp")]
+```
+
+In 2018, the region with the highest average tourist expenditure was the Americas.
+
+<br>
+
+# Part 3, question a
+
+```{r 3a, results = 'hide'}
+# Part 3, Question a
+genforward <- read_sav(here("data", "genforward sept 2017.sav"))
+dim(genforward)
+```
+The `genforward` data has 1,741 rows and 114 columns.
+
+<br>
+
+# Part 3, question b
+
+```{r 3b}
+# Part 3, Question b
+attributes(genforward$Q1)
+```
+
+The variable `Q1` is numeric with labels.  
+
+Since I used `read_sav` from the `haven` package to import the SPSS data, the official class of `Q1` as specified by the `attributes` function is `haven_labelled`, which means that it is a numeric vector with value labels attached to it.
+
+<br>
+
+# Part 3, question c
+
+```{r 3c, results = 'hide'}
+## Part 3, Question c
+attributes(genforward$Q1)
+table(genforward$Q1)
+genforward$Q1[genforward$Q1 == 98 | genforward$Q1 == 99] <- NA
+table(genforward$Q1)
+approval_responses <- c(1, 2)
+sum(genforward$Q1 %in% approval_responses, na.rm = TRUE) / sum(!is.na(genforward$Q1))
+
+```
+
+14.7 percent of the sample either strongly approved or somewhat approved of the way President Trump was handling his job as president.
+
+<br>
+
+# Part 3, question d
+
+```{r 3d, results = 'hide'}
+## Part 3, Question d
+genforward_subset <- genforward[genforward$state %in% c('PA', 'NJ') ,
+                                c('Q13_3', 'Q13_8', 'Q13_20', 'state', 'GenF_ID')]
+
+str(genforward_subset$Q13_3)
+genforward_subset$environment <- genforward_subset$Q13_3
+genforward_subset$Q13_3 <- NULL
+
+str(genforward_subset$Q13_8)
+genforward_subset$poverty <- genforward_subset$Q13_8
+genforward_subset$Q13_8 <- NULL
+
+str(genforward$Q13_20)
+genforward_subset$education <- genforward_subset$Q13_20
+genforward_subset$Q13_20 <- NULL
+```
+
+<br>
+
+# Part 3, question e
+
+```{r 3e, results = 'hide'}
+## Part 3, Question e
+genforward_subset_long <-pivot_longer(
+  genforward_subset,
+  cols = 3:5,
+  names_to = 'issues',
+  values_to = 'value'
+)
+```
+
+<br>
+
+# Part 3, question f
+
+```{r 3f, results = 'hide'}
+## Part 3, Question f
+aggregate_issues <- aggregate(value ~ issues + state,
+                              sum,
+                              data = genforward_subset_long)
+```
+
+<br>
+
+# Part 3, question g
+
+```{r 3g}
+## Part 3, Question g
+aggregate_issues$total[aggregate_issues$state == 'PA'] <- sum(
+  genforward_subset_long$state == 'PA'
+)  
+
+aggregate_issues$total[aggregate_issues$state == 'NJ'] <- sum(
+  genforward_subset_long$state == 'NJ'
+)  
+
+aggregate_issues$share <- aggregate_issues$value / aggregate_issues$total  
+
+ggplot(aggregate_issues, aes(x = issues, y = share, fill = state)) +
+  geom_bar(stat = 'identity', position = 'dodge') +
+  labs(
+    title = "Share of Respondents Identifying Certain Issues \n as Country's Top Problem",
+    subtitle = 'by State',
+    x = "Issue",
+    y = "Percent (%)",
+    fill = 'State'
+  ) +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme(
+    legend.position = 'bottom'
+  )
+```
+
+<br>
+
+# Extra Credit Problem
+
+Between 2016 and 2018, Germany had the largest increase in outbound tourism expenditures. Over that period, Saudi Arabia had the largest decrease in outbound tourism expenditures.
+
+```{r extra_credit}
+
+tourist_expenditures_ec <- tourist_expenditures[tourist_expenditures$Year %in% c(2016, 2017, 2018), ]  
+
+tourist_expenditures_ec_wide <- pivot_wider(
+  tourist_expenditures_ec,
+  names_from = Year,
+  values_from = Outbound.Tourism.Expenditure..adjusted.for.US.2021.inflation.)  
+
+tourist_expenditures_ec_wide$change1618 <- tourist_expenditures_ec_wide$`2018` -
+  tourist_expenditures_ec_wide$`2016`
+
+tourist_expenditures_ec_wide[which.max(tourist_expenditures_ec_wide$change1618), ]
+
+tourist_expenditures_ec_wide[which.min(tourist_expenditures_ec_wide$change1618), ]
+
+```
+
+
+# ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

@@ -1,0 +1,290 @@
+---
+title: "Assignment 4"
+author: "Ed Murphy"
+date: "2025-02-24"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+  word_document: default
+---
+
+  
+
+```{r setup, warning=FALSE, message=FALSE}
+
+# Load necessary libraries
+library(tidyverse)
+library(haven)
+library(ggplot2)
+library(here)
+
+# setting working directory for knitting
+knitr::opts_knit$set(root.dir = here())
+
+# set seed
+set.seed(9142024)
+```
+ 
+  
+
+## Load the data and create time_minutes variable
+
+```{r load}
+# load the data
+nycmar <- read.csv(here("data", "NYC_2022_marathon_final.csv"))
+
+# create variable
+nycmar <- nycmar %>%
+  mutate(
+    time_minutes = round(as.numeric(hms(timeOverall)) / 60, 2)
+  )
+
+head(nycmar)
+```
+
+  
+
+## Problem 1
+
+The population mean of the `time_minutes` variable is `r mean(nycmar$time_minutes, na.rm=TRUE)`.
+
+
+```{r 1}
+# Problem 1
+popmean_time <- mean(nycmar$time_minutes, na.rm=TRUE)
+popmean_time
+```
+
+
+## Problem 2
+
+```{r 2}
+# Problem 2
+
+# already set the seed in the setup chunk, but doing it again because
+# the assignment prompt said to set it here as well
+set.seed(9142024)
+
+sample_nycmar <- sample_n(nycmar, size = 1000, replace = TRUE)
+samplemean_time <- mean(sample_nycmar$time_minutes, na.rm=TRUE)
+samplemean_time
+samplesd_time <- sd(sample_nycmar$time_minutes, na.rm=TRUE)
+samplesd_time
+```
+
+For the sample of 1,000 runners, the sample mean is `r mean(sample_nycmar$time_minutes, na.rm=TRUE)` and the sample standard deviation is `r sd(sample_nycmar$time_minutes, na.rm=TRUE)`.
+
+  
+
+## Problem 3
+
+In this case, the sample mean is a good estimator for the population mean for the `time_minutes` variable. First, the population mean of `r popmean_time` and the sample mean of `r samplemean_time` are quite close to one another. Their difference is very small relative to the sample standard deviation of `r samplesd_time`. Getting more rigorous about it, we can use the sample mean and the sample standard deviation to create a 95% confidence interval around the sample mean. 
+
+```{r 3}
+sem <- samplesd_time / sqrt(nrow(sample_nycmar))
+z <- 1.96
+ci_lower <- samplemean_time - (z * sem)
+ci_upper <- samplemean_time + (z * sem)
+```
+
+When we do that calculation, we get a 95% confidence interval that runs from `r ci_lower` to `r ci_upper`. Given that the population mean of `r popmean_time` falls within that confidence interval, we can be pretty confident that the sample mean is a good estimator of the population mean.
+
+  
+
+## Problem 4
+
+```{r 4}
+# Problem 4
+t <- (samplemean_time - 300) / (samplesd_time / sqrt(nrow(sample_nycmar)))
+t
+```
+
+The test statistic is `r t`. The intuition behind the numerator is that we are trying to gauge how far apart our sample mean is from the value of the population mean of the null hypothesis. In this case, our sample mean is `r samplemean_time` and the null hypothesis is that the population mean is 300, so we get a numerator of `r samplemean_time - 300` and a test statistic of `r t`. But let's say the null hypothesis was that the population mean was 5. In that case, the numerator would be absolutely huge, equal to `r 5 - 300`, which would mean a very extreme test statistic.
+
+  
+
+## Problem 5
+
+The value of `t95` is `r qnorm(0.975, mean = 0, sd = 1)`. The test statistic computed in `Problem 4` was `r t`, and its absolute value was `r abs(t)`. Because the absolute value of the test statistic is larger than `t95`, we reject the null hypothesis that the population mean is 300. In plain English, we know from our sample data that the population's mean is very unlikely to be 300. (This is at the 95% confidence level, meaning there is a 5% chance we're wrong about this.)
+
+```{r 5}
+
+t95 <- qnorm(0.975, mean = 0, sd = 1)
+t95
+```
+
+
+  
+
+## Problem 6
+
+The value of `t99` is `r qnorm(0.995, mean = 0, sd = 1)`. The test statistic computed in `Problem 4` was `r `t`, and its absolute value was `r abs(t)`. Because the absolute value of the test statistic is larger than `r qnorm(0.995, mean = 0, sd = 1)`, we reject the null hypothesis that the population mean is 300. In plain English, we know from our sample data that the population's mean is very unlikely to be 300. Thanks to this step, we're now even more certain that we're not incorrectly rejecting the null. 
+
+```{r 6}
+# Problem 6
+t99 <- qnorm(0.995, mean = 0, sd = 1)
+t99
+```
+
+  
+
+## Problem 7
+
+The p value of `r 2 * (1-pnorm(abs(t)))` is incredibly small, i.e. essentially 0. It tells us that there is essentially no chance of finding a more extreme test statistic than the one we have. 
+
+```{r 7}
+# Problem 7
+p_value <- 2 * (1 - pnorm(abs(t)))
+p_value
+```
+
+  
+
+## Problem 8
+
+We can't use the normal distribution to conduct the test in this case because our sample size of 20 is not sufficiently large to do so. We could only use the normal distribution before because our sample size was 1,000.
+
+```{r 8}
+# Problem 8
+
+# setting seed again just because assignment said to
+# was previously set in setup chunk and in chunk for Problem 2
+set.seed(9142024)
+
+sample20_nycmar <- sample_n(nycmar, size = 20, replace = TRUE)
+samplemean20_time <- mean(sample20_nycmar$time_minutes, na.rm=TRUE)
+samplemean20_time
+samplesd20_time <- sd(sample20_nycmar$time_minutes, na.rm=TRUE)
+samplesd20_time
+t_20obs <- (samplemean20_time - 300) / (samplesd20_time / sqrt(nrow(sample20_nycmar)))
+t_20obs
+```
+
+  
+
+## Problem 9
+
+
+
+```{r 9}
+# Problem 9
+t_test_95 <- t.test(sample20_nycmar$time_minutes,
+                    alternative = "two.sided",
+                    mu = 300,
+                    conf.level = 0.95)
+t_test_95
+
+t.test(sample20_nycmar$time_minutes,
+       alternative = "two.sided",
+       mu = 300,
+       conf.level = 0.90)
+
+t.test(sample20_nycmar$time_minutes,
+       alternative = "two.sided",
+       mu = 300,
+       conf.level = 0.99)
+```
+
+  
+The test statistic output by `t.test`, `r t_test_95$statistic`, does coincide with the one computed by hand in `Problem 8` above! The p-value is `r t_test_95$p.value`, indicating that there is a `r t_test_95$p.value * 100`% chance that we could find a more extreme test statistic if the null hypothesis were true. So we cannot reject the null. And this remains true at the 1%, 5%, and 10% confidence levels. We can't reject the null hypothesis at any of those.
+  
+
+## Problem 10
+
+The value of `t95` is `r qt(0.975, 19)`. As calculated previously, our test statistic is `r t_20obs`, with an absolute value of `r abs(t_20obs)`. Since the absolute value of the test statistic is less than `t95`, we cannot reject the null hypothesis.
+
+```{r 10}
+# Problem 10
+t95 <- qt(0.975, 19)
+t95
+```
+
+  
+
+## Problem 11
+
+The p-value calculated by hand using the test statistic from `Problem 8` and the t distribution from `Problem 10` is `r 2 * pt(t_20obs, 19)`.
+
+```{r 11}
+# Problem 11
+p_value <- 2 * pt(t_20obs, 19)
+p_value
+```
+
+  
+
+## Problem 12
+
+```{r 12}
+# Problem 12
+
+popmean_guess <- seq(200, 400, by = 0.01)
+
+t95 = qnorm(0.975, mean = 0, sd = 1)
+
+guess_table <- data.frame(
+  popmean_guess = popmean_guess,
+  t = rep(NA_real_, length(popmean_guess)),
+  t95 = t95,
+  reject_null = rep(NA_character_, length(popmean_guess))
+)
+
+for (i in seq_along(popmean_guess)) {
+  
+  guess <- popmean_guess[i]
+  
+  t <- (samplemean_time - guess) / (samplesd_time / sqrt(nrow(sample_nycmar)))
+  
+  t_abs <- abs(t)
+  
+  reject <- ifelse(t_abs > t95, TRUE, FALSE)
+
+  guess_table$t[i] <- t
+  
+  guess_table$reject_null[i] <- reject
+
+}
+
+fail_reject_min <- guess_table %>%
+  filter(reject_null == FALSE) %>%
+  summarise(min_popmean = min(popmean_guess, na.rm = TRUE)) %>%
+  pull(min_popmean)
+
+fail_reject_max <- guess_table %>%
+  filter(reject_null == FALSE) %>%
+  summarise(max_popmean = max(popmean_guess, na.rm = TRUE)) %>%
+  pull(max_popmean)
+
+```
+
+We fail to reject the null hypothesis at values of [`r fail_reject_min`, `r fail_reject_max`]. We reject the null hypothesis at values of [`200`, `r fail_reject_min - 0.01`] and values of [`r fail_reject_max + 0.01`, `400`].
+
+
+  
+
+## Problem 13
+
+```{r 13}
+
+t_test_result <- t.test(sample_nycmar$time_minutes,
+                        alternative = 'two.sided',
+                        mu = 200,
+                        conf.level = 0.95)
+
+t_test_result$conf.int
+
+```
+
+The confidence interval calculated using the function `t.test` is [`r t_test_result$conf.int`]. That confidence interval is very close (down to the second decimal place) of the "fail to reject the null" interval that we calculated in `Problem 12`. We've done the same thing at two different levels of effort/precision!
+
+  
+
+  
+  
+
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

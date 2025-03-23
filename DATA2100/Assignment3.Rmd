@@ -1,0 +1,277 @@
+---
+title: "HW3"
+author: "Ed Murphy"
+date: "2024-11-25"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+  word_document: default
+---
+
+<br>
+
+```{r setup, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(tidyverse)
+library(formatR)
+library(readxl)
+library(ggplot2)
+library(here)
+
+# setting working directory for knitting
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60))
+knitr::opts_knit$set(root.dir = here())
+
+# Set options for tibble output and CRAN mirror
+options(tibble.width = Inf)
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+```
+ 
+<br>
+
+```{r 1a, results = 'hide'}
+
+# Problem 1, Question (a)
+education_long <- read.csv(here("data", "materials/Assignments/education_long.csv"))
+dim(education_long)
+head(education_long)
+```
+
+<br>
+
+```{r 1b, results = 'hide'}
+
+# Problem 1, Question (b)
+education_wide <- education_long %>%
+  pivot_wider(
+    names_from = Year,
+    values_from = College_Completion_Rate
+  )
+```
+<br>
+
+```{r 1c, results = 'hide'}
+
+# Problem 1, Question (c)
+poverty_report <- read_excel("materials/Assignments/PovertyReport.xlsx", sheet = 2)
+dim(education_long)
+head(education_long)
+```
+<br>
+
+```{r 1d, results = 'hide'}
+
+# Problem 1, Question (d)
+education_clean <- education_wide %>%
+  select(Name, `2013-2017_Urban`, `2013-2017_Rural`, `2013-2017_Total`)
+```
+<br>
+
+```{r 1e, results = 'hide'}
+
+# Problem 1, Question (e)
+nrow(education_clean)
+nrow(poverty_report)
+# The education data has 53 rows whereas the poverty data has 52 rows.
+```
+<br>
+
+```{r 1f, results = 'hide'}
+
+# Problem 1, Question (f)
+poverty_report$Name[poverty_report$Name == "National"] <- "United States"
+
+combined_data <- merge(
+  x = education_clean,
+  y = poverty_report,
+  by = "Name",
+  all.x = F,
+  all.y = F
+)
+# This inner merge drops the rows in each dataset that have no match in the other data set.
+# Because United States and National are the same thing in this context,
+# and National was renamed to United States, the only dropped observation in the
+# merge was Puerto Rico from the education dataset,
+# because the poverty dataset didn't have Puerto Rico data.
+```
+<br>
+
+```{r 1g, warning = FALSE, message = FALSE}
+
+# Problem 1, Question (g)
+combined_data <- combined_data %>%
+  rename(
+    college_urban = `2013-2017_Urban`,
+    college_rural = `2013-2017_Rural`,
+    college_total = `2013-2017_Total`,
+    poverty_rate = Percent,
+    child_poverty_rate = Percent_0to17
+  ) %>%
+  mutate(
+    poverty_rate = poverty_rate / 100,
+    child_poverty_rate = child_poverty_rate / 100
+  )
+
+ggplot(combined_data) +
+  geom_point(aes(x = poverty_rate, y = college_urban, color = "Urban"),
+             size = 1, alpha = 0.7) +
+  geom_point(aes(x = poverty_rate, y = college_rural, color = "Rural"),
+             size = 1, alpha = 0.7) +
+  geom_point(aes(x = poverty_rate, y = college_total, color = "Total"),
+             size = 1, alpha = 0.7) +
+  geom_smooth(aes(x = poverty_rate, y = college_urban, color = "Urban"),
+              method = "lm", linetype = "dashed", se = FALSE) +
+  geom_smooth(aes(x = poverty_rate, y = college_rural, color = "Rural"),
+              method = "lm", linetype = "dashed", se = FALSE) +
+  geom_smooth(aes(x = poverty_rate, y = college_total, color = "Total"),
+              method = "lm", linetype = "dashed", se = FALSE) +
+  labs(
+    title = "Poverty Level vs. College Completion Rate",
+    subtitle = "by State",
+    x = "Poverty Rate",
+    y = "College Completion Rate",
+    color = "Geographic Classification"
+  ) +
+  theme_minimal(base_size = 12) +
+  scale_color_manual(values = c("Urban" = "blue",
+                                "Rural" = "green",
+                                "Total" = "red")) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    legend.position = "bottom"
+  )
+
+# As the poverty rate increases, college completion rates drop.
+# Also, college completion rates tends to be lower in rural areas than in urban areas.
+
+```
+<br>
+
+```{r 2a, results = 'hide'}
+
+# Problem 2, Question (a)
+schools <- read.csv(
+  "materials/Assignments/2006_-_2012_School_Demographics_and_Accountability_Snapshot.csv"
+  )
+sats <- read.csv(
+  "materials/Assignments/SAT__College_Board__2010_School_Level_Results.csv"
+  )
+```
+<br>
+
+```{r 2b, results = 'hide'}
+
+# Problem 2, Question (b)
+schools2010 <- schools[schools$schoolyear == 20092010, ]
+```
+
+<br>
+
+```{r 2c, results = 'hide'}
+
+## Problem 2, Question (c)
+dim(schools2010)
+dim(sats)
+
+# The schools dataset includes all schools, regardless of level.
+# But only high schools take the SATs. So there are going to be more schools
+# than SAT-taking schools. We can prove this quickly by showing that many
+# schools have NA amounts for number of 10th graders,
+# meaning that they're elementary schools or middle schools.
+
+sum(is.na(schools$grade10))
+
+```
+
+<br>
+
+```{r 2d, results = 'hide'}
+
+## Problem 2, Question (d)
+highschools <- schools2010[
+  !(
+    is.na(schools2010$grade9) &
+      is.na(schools2010$grade10) &
+      is.na(schools2010$grade11) &
+      is.na(schools2010$grade12)
+    ),
+  ]
+```
+
+<br>
+
+```{r 2e, results = 'hide'}
+
+## Problem 2, Question (e)
+sat_profile <- merge(
+  x = highschools,
+  y = sats,
+  by = "DBN",
+  all.x = F,
+  all.y = F
+)
+# Since DBN and Name both don't have duplicates in either dataset,
+# technically either could be used as the unique identifier.
+# But computationally, it's better to use something like DBN.
+# Using Name, which can be a very long set of characters, would require
+# the computer to work through some very long strings when doing the merge.
+# Also, a single formatting error or incorrect spelling in the long name of
+# a school in either dataset could create problems for the merge.
+# DBN is a relatively short string of letters and numbers.
+```
+
+<br>
+
+```{r 2f, warning = FALSE, message = FALSE}
+
+## Problem 2, Question (f)
+sat_long <- sat_profile %>%
+  pivot_longer(
+    cols = c(white_per, black_per, asian_per, hispanic_per),
+    names_to = "race",
+    values_to = "percent"
+  ) %>%
+  mutate(
+    race= recode(race,
+                 white_per = "White",
+                 black_per = "Black",
+                 asian_per = "Asian",
+                 hispanic_per = "Hispanic")
+  )
+
+
+ggplot(sat_long, aes(x = percent, y = Critical.Reading.Mean, color = race)) +
+  geom_point(size = 1, alpha = 0.2) +
+  geom_smooth(method = "lm", linetype = "solid", se = FALSE) +
+  labs(
+    title = "Race vs. SAT Reading Score",
+    subtitle = "by NYC School",
+    x = "Share of School Enrollment from Racial Group",
+    y = "School's Average Score on SAT Critical Reading",
+    color = "Race/Ethnicity Group"
+  ) +
+  theme_minimal(base_size = 12) +
+  scale_color_manual(values = c("White" = "blue",
+                                "Black" = "green",
+                                "Asian" = "red",
+                                "Hispanic" = 'orange')) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    legend.position = "bottom"
+  ) +
+  facet_wrap(~race)
+
+# As the percentage of Asian or White students in a school increases,
+# that school's average SAT critical reading score increases.
+# As the percentage of Black or Hispanic students in a school increases,
+# that school's average SAT critical reading score decreases.
+
+```
+
+<br>
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```
