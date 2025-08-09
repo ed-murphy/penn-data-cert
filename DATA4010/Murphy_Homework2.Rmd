@@ -1,0 +1,100 @@
+---
+title: "Homework 2"
+author: "Ed Murphy"
+date: "2025-04-01"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+  word_document: default
+---
+
+  
+
+```{r setup, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(nflfastR)
+library(dplyr)
+library(ggplot2)
+library(sandwich)
+library(lmtest)
+
+# setting working directory for knitting
+knitr::opts_knit$set(
+  root.dir = "C:/Users/edwar/OneDrive/Ed_Outlook_acct/OneDrive/Repositories/DATA4010")
+```
+  
+# First, recap from last assignment
+
+My dataset includes information from every play of the 2024 NFL season. It is made available by the `nflfastR` package. The information available in this dataset is extensive. It includes the down and distance at the start of each play, the weather conditions, the play's outcome, information about players involved, and much more.
+
+```{r read}
+
+# reading in the data
+nfl_plays_2024 <- load_pbp(2024)
+
+# quick exploration
+glimpse(nfl_plays_2024[1:10])
+```
+  
+In last week's assignment, my multivariate regression looked at whether wind speed, yards until achieving a first down, and lining up in shotgun formation were able to predict air yards on a play-by-play basis. I did not use data for every play from the 2024 NFL season. I first weeded out play types of extra point, kickoff, "no play", punt, kneel, and spike - because on those play types, the offense doesn't even have the option of gaining air yards, unlike on pass and run plays. The results of that multivariate regression from last week are shown below.
+
+```{r recap}
+# my original multivariate regression
+
+# first, filter out irrelevant plays
+model <- nfl_plays_2024 %>%
+  filter(play_type %in% c('pass', 'run')) %>%
+  select(air_yards, wind, ydstogo, shotgun) %>%
+  
+  # then, with the remaining plays, construct the multivariate regression
+  lm(air_yards ~ wind + ydstogo + shotgun, data = .)
+
+# inspect the regression results
+summary(model)
+```
+  
+# Now, this week, doing the regression again, but with an interaction effect
+
+When I ran the model the first time (without interaction effects), the coefficients were not statistically significant and they were all fairly modest. A 1mph increase in wind led to a 0.04 yard decrease in air yards, a 1 yard increase in distance required for a first down led to a 0.04 yard increase in air yards, and lining up in shotgun led to a 0.25 yard increase in air yards.
+
+Now, this week, I am adding an interaction effect for yards to go and lining up in the shotgun formation. I am saying that I don't think the effect of lining up in shotgun is going to be constant across the entire range of yards to go. For example, lining up in shotgun when there is 1 yard to go (say on a 3rd down) and lining up in shotgun when there are many yard to go (say on a 3rd and 25) aren't really the same thing. The effect of lining up in shotgun in those two scenarios is probably very different. So I am re-running my regression to allow for a non-constant effect of the shotgun formation across the yards to go range.
+
+```{r interaction}
+# re-reunning my regression this week with an interaction effect
+model_interact <- nfl_plays_2024 %>%
+  filter(play_type %in% c('pass', 'run')) %>%
+  select(air_yards, wind, ydstogo, shotgun) %>%
+  lm(air_yards ~ wind + ydstogo * shotgun, data = .)
+
+summary(model_interact)
+```
+
+Indeed, when I run the regression with an interaction effect between yards to go and shotgun, I first see that the intercept decreases from 7.4 air yards in the original regression, to 5.9 in this one. The effect of wind speed stays about the same. For yards to go, the coefficient has increased from 0.04 to 0.22. The coefficient for lining up in shotgun formation has also increased substantially - from 0.24 to 1.88.
+
+Now, to interpret those coefficients alongside the new interaction effect.
+
+We see that an additional yard to go for a first down led to a 0.22 yard increase in air yards. The interaction effect tells us that if a team is lined up in shotgun, that coefficient is reduced from about 0.22 to just 0.03. In other words, the interaction between yards to go and shotgun is not constant. Most of the relationship between yards to go and air yards achieved is for teams that are not lined up in shotgun.
+
+When looking at shotgun in isolation, we see that it generally increases air yards by 1.88. However, the interaction effect tells us that 1.88 is reduced by 0.19 for every yard to go for a first down. In other words, most of the relationship between lining up in shotgun and air yards is from plays with very few yards to go for a first down. By around 10 yards to go for a first down, the effect of lining up in shotgun on air yards is about 0.
+
+Finally, one other important note from the new regression is that the coefficients for yards to go and shotgun are statistically significant in this new regression. They previously were not. And the interaction term itself is statistically significant as well.
+  
+# Finally, add robust standard errors to the new regression
+
+```{r robust}
+# variance-covariance
+vcov(model_interact, type = 'HC1')
+
+# this is my new regression, but with robust standard errors
+coeftest(model_interact, vcov=vcovHC(model_interact, type = 'HC1'))
+```
+
+When I adjust the regression results to use robust standard errors, I can see that the robust standard errors and their p-values are not much different than the regular standard errors and their p-values. In my case, all coefficients that were statistically significant at the 95% confidence level before are still statistically significant at the 95% confidence level now, under the robust standard errors setup. The wind coefficient, which was not statistically significant at the 95% confidence interval before, is still not now.
+
+As we learned in class, regular standard errors assume that there is no heteroskedasticity in our data, so they can misrepresent the precision of our coefficient estimates when heteroskedasticity is present. The value-add of the robust standard errors is that they account for the possibility of heteroskedasticity, and if it was present, the robust standard errors would have helped to prevent us from being misled by artificially small regular standard errors. However, in the end, we can see that there wasn't much heteroskedasticity in our data.
+  
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

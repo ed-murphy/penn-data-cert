@@ -1,0 +1,135 @@
+---
+title: "Final Project"
+author: "Ed Murphy"
+date: "2025-05-09"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+  word_document: default
+---
+
+  
+
+```{r setup, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(tidyverse)
+library(sandwich)
+library(lmtest)
+library(car)
+
+# setting working directory for knitting
+knitr::opts_knit$set(
+  root.dir = "C:/Users/edwar/OneDrive/Ed_Outlook_acct/OneDrive/Repositories/DATA4010/src")
+```
+
+  
+## Introduction
+
+The analysis in this file can be interacted via an app that lives at:  
+http://vli187-ed-murphy.shinyapps.io/phillysuspensions 
+
+## Load the data
+
+```{r load}
+# load the data
+schools <- read.csv('Philly_schools.csv')
+```
+
+  
+
+## Create the necessary variables
+
+
+```{r 1a}
+schools <- schools %>%
+  mutate(
+    lowinc_count = Low_income_family / 100 * Enrollment,
+    student_turnover = New_student + Withdrawals,
+    special_education_students = Special_education / 100 * Enrollment
+  )
+```
+
+This analysis will consistently use counts in order to make results intuitive. 
+
+  
+## Plot suspensions by school as a histogram
+
+```{r 1b}
+ggplot(schools, aes(x = Total_suspensions)) + 
+  geom_histogram(bins = 30, fill = 'blue', color = 'black', alpha = 0.7) +
+  geom_density(alpha = 0.2, fill = 'blue') +
+  labs(
+    title = 'Histogram of Total Suspensions',
+    x = 'Total Suspensions',
+    y = 'Number of Schools'
+  ) +
+  theme_minimal()
+```
+  
+Most schools have very few suspensions. Some schools have 100-200 suspensions. Very few schools have more than 200 suspensions.
+  
+## Plot suspensions and school size
+
+```{r 1c}
+ggplot(schools, aes(x = Enrollment, y = Total_suspensions)) +
+  geom_point(color = 'darkgreen', alpha = 0.7) +
+  labs(title = 'Total Suspensions vs. Enrollment',
+       x = 'Enrollment',
+       y = 'Total Suspensions') +
+  theme_minimal()
+```
+
+A scatter plot of enrollment and suspensions shows that there is probably a linear relationship between the two. Which would mean that bigger schools just have more suspensions. Let's dig a bit further with a model.
+
+## Linear model of Suspensions with 1 Precitor: School Enrollment (Size)
+
+```{r 1d}
+model <- lm(Total_suspensions ~ Enrollment, data = schools)
+summary(model)
+```
+
+There is clearly something there. Bigger schools have more suspensions. Enrollment explains roughly half of the variation in suspensions. But we can dig further.
+  
+
+## Explore other predictors
+
+```{r 1e}
+model2 <- lm(Total_suspensions ~ Enrollment + lowinc_count + student_turnover + special_education_students, data = schools)
+summary(model2)
+```
+
+When we add additional intuitive predictors - how many low-income families, how much turnover is there in each year (withdrawals + new students), and how many special education students are enrolled (special education in Philly schools includes "emotional disturbance") - enrollment loses its significance. Perhaps surprisingly, the number of low-income students is also not a good predictor of suspensions. However, student turnover and the number of special education students are very good predictors. 
+
+## Finalize the model for the app
+
+```{r 1f}
+model3 <- lm(Total_suspensions ~ student_turnover + special_education_students, data = schools)
+summary(model3)
+```
+
+Our final model predicts total suspensions using total student turnover and number of special education students. It has an R-squared value of 0.77, meaning that our two predictors explain 77% of the variation in number of suspensions. But let's do some more checks. 
+
+```{r 1g}
+# check for multicollinearity
+vif(model3)
+
+# check for heteroskedasticity
+bptest(model3)
+
+# get robust standard errors
+coeftest(model3, vcov=vcovHC(model3, type = 'HC1'))
+```
+
+Our due diligence shows that there is no concern with multicollinearity. However, there is heteroskedasticity. As a result, robust standard errors were used. The robust standard errors do not change the interpretation of our coefficients. For each 1 additional new student or withdrawn student, there is an increase in suspensions of 0.27. For each 1 additional special education student, there is an increase in suspensions of 0.99. Both coefficients are statistically significant at the 1% confidence level.
+  
+  
+This is the model that we will examine in the app.
+
+ 
+
+
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```

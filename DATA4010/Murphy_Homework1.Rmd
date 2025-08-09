@@ -1,0 +1,125 @@
+---
+title: "Homework 1"
+author: "Ed Murphy"
+date: "2025-03-24"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+  word_document: default
+---
+
+  
+
+```{r setup, warning=FALSE, message=FALSE}
+# Load necessary libraries
+library(nflfastR)
+library(dplyr)
+library(ggplot2)
+
+# setting working directory for knitting
+knitr::opts_knit$set(
+  root.dir = "C:/Users/edwar/OneDrive/Ed_Outlook_acct/OneDrive/Repositories/DATA4010")
+```
+  
+## Problem 1
+
+My dataset includes information from every play of the 2024 NFL season. It is made available by the `nflfastR` package. The information available in this dataset is extensive. It includes the down and distance at the start of each play, the weather conditions, the play's outcome, information about players involved, and much more.
+  
+## Problem 2
+
+We can see that there is a slight correlation between air yards in a given play and wind speed during a given play. Also, we can see that there appears to be essentially zero correlation between rushing yards in a play and temperature.
+
+```{r 2}
+# Problem 2
+
+# reading in the data
+nfl_plays_2024 <- nflfastR::load_pbp(2024)
+
+# initial exploratory analysis
+dim(nfl_plays_2024)
+str(nfl_plays_2024)
+glimpse(nfl_plays_2024[1:10])
+
+# descriptive stats
+summary(nfl_plays_2024$yards_gained)
+summary(nfl_plays_2024$air_yards)
+table(nfl_plays_2024$posteam)
+table(nfl_plays_2024$defteam)
+
+# visualizations
+nfl_plays_2024 %>%
+  ggplot(aes(x = air_yards)) +
+  geom_histogram(bins = 50, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(xintercept = mean(air_yards, na.rm = TRUE),
+                 color = "Mean"), linetype = "dashed", linewidth = 1) +
+  geom_vline(aes(xintercept = median(air_yards, na.rm = TRUE), color = "Median"),
+             linetype = "dashed", linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c('Mean' = 'red', 'Median' = 'green')) +
+  labs(title = 'Air Yards by NFL Play During the 2024 Season',
+       x = 'Air Yards',
+       y = 'Count') +
+  theme_minimal()
+
+nfl_plays_2024 %>%
+  ggplot(aes(x = wind)) +
+  geom_histogram(bins = 20, fill = 'steelblue', color = 'black', alpha = 0.7) +
+  geom_vline(aes(xintercept = mean(air_yards, na.rm = TRUE),
+                 color = "Mean"), linetype = "dashed", linewidth = 1) +
+  geom_vline(aes(xintercept = median(air_yards, na.rm = TRUE), color = "Median"),
+             linetype = "dashed", linewidth = 1) +
+  scale_color_manual(name = 'Statistics', values = c('Mean' = 'red', 'Median' = 'green')) +
+  labs(title = 'Wind Speed by NFL Play During the 2024 Season',
+       x = 'Wind',
+       y = 'Count') +
+  theme_minimal()
+
+# explorations of variable classes
+str(nfl_plays_2024)
+
+# correlations
+cor(nfl_plays_2024$air_yards, nfl_plays_2024$wind, use = 'complete.obs')
+cor(nfl_plays_2024$rushing_yards, nfl_plays_2024$temp, use = 'complete.obs')
+```
+  
+## Problem 3
+I am going to do a multivariate regression using air yards as the dependent variable, and the independent variables will be wind speed, yards to go for a first down, and whether or not the offensive team was in a shotgun formation.
+  
+# Problem 4
+In American football, when a team is on offense, they generally have the option to run the ball (i.e. hand it to a running back), pass the ball (i.e. the quarterback throws the ball to a receiver), or kick the ball (i.e. kick a field goal or punt to the other team). When a team passes the ball, one statistic called air yards measures how far the ball traveled up to the point that it was caught, before any subsequent running. My multivariate regression will use the variables described in Problem 3 to ascertain whether there is a relationship between the number of air yards achieved on a given play and the weather conditions (wind speed), strategy conditions (how many yards does the team need for a first down), and the team's offensive style (are they in shotgun formation on this play). I would expect that wind speed would reduce the number of air yards, on average, because wind creates a chaotic situation in which the thrown ball is less accurate. I would expect that the yards required for a first down would increase the number of air yards, on average, because it's usually pretty unlikely to gain a lot of yards without passing the ball. And finally, I would expect a team lining up in the shotgun formation to increase the number of air yards, on average, because shotgun is more commonly associated with passing than other formations in which the quarterback lines up directly under center.
+  
+## Problem 5
+Before I run my multivariate regression, I am removing plays in which the offense chose before the play even began that they would not attempt to pass the ball, or rules disallowed them from passing the ball. That means removing extra points, kickoffs, "no plays", punts, kneels, and spikes.
+
+```{r 5}
+# Problem 5
+model <- nfl_plays_2024 %>%
+  filter(play_type %in% c('pass', 'run')) %>%
+  select(air_yards, wind, ydstogo, shotgun) %>%
+  lm(air_yards ~ wind + ydstogo + shotgun, data = .)
+
+summary(model)
+```
+  
+## Problem 6
+
+The coefficients of my multivariate regression are that a 1mph decrease in wind speed is associated with 0.039 fewer air yards, a 1 yard increase in the distance required for a first down is associated with 0.042 more air yards, and the offense beginning a play in shotgun formation is associated with 0.245 more air yards. That being said, the p-values for those coefficients indicate that none of those coefficients are statistically significant at the 95% confidence level. In other words, the model here does not predict air yards. What is most likely true is that there are many relevant variables still stuck in the error term. Examples of potentially important variables include temperature, time left in the half, time left in the game, and current score differential. In other words, independent of everything measured in my multivariate regression above, a frigid day might depress air yards and being up by 30 points might depress air yards.
+  
+## Problem 7
+
+```{r 7}
+# Problem 7
+# Code to export my data set for submission with the assignment.
+data_for_regression <- nfl_plays_2024 %>%
+  filter(play_type %in% c('pass', 'run')) %>%
+  select(air_yards, wind, ydstogo, shotgun)
+
+write.csv(data_for_regression, 'Murphy_Homework1_data.csv', row.names = FALSE)
+```
+
+
+  
+ALL CODE FOR THIS ASSIGNMENT:
+
+```{r ref.label=knitr::all_labels(), echo = T, eval = F}
+
+```
